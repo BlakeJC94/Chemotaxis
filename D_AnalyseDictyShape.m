@@ -34,7 +34,7 @@ AREA_LIMITS = [500 10000];
 % Plot parameters %
 % --------------- %
 
-PLOT_NUMS = 1:7; %plot numbers to show
+PLOT_NUMS = 1:2; %plot numbers to show
 PLOT_MARGIN_X = 0.003; %x-margin to put around each subplot
 PLOT_MARGIN_Y = 0; %y-margin to put around each subplot
 PLOT_NUM_COLS_LIST = [ 1 2 2 2 3 3 3 3 ]; %number of columns for subplot

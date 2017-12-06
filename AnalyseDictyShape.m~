@@ -98,8 +98,7 @@ im_bg = int16(round( im_bg/num_frames_range ));
 
 %% Try edge dection?
 im_sobel = edge(im(:,:,1), 'sobel');
-im_canny = edge(im(:,:,1), 'canny');
-im_prewitt = edge(im(:,:,1), 'prewitt');
+
 
 %% testplots
 
@@ -112,9 +111,9 @@ I2 = im_bg(:,:);
 eval(['imshow(I2,''InitialMagnification'',''fit'');']);
 
 figure;
-I3 = im_prewitt(:,:);
-for i = 1:size(REGIONS_TO_IGNORE,1)
-    for j = REGIONS_TO_IGNORE(i,2):REGIONS_TO_IGNORE(i,4)
+I3 = im_sobel(:,:);
+    for i = 1:size(REGIONS_TO_IGNORE,1)
+        for j = REGIONS_TO_IGNORE(i,2):REGIONS_TO_IGNORE(i,4)
         for k = REGIONS_TO_IGNORE(i,1):REGIONS_TO_IGNORE(i,3)
             I3(j,k) = 0;
         end
