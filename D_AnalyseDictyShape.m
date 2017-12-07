@@ -22,7 +22,7 @@ set(gcf, 'Position', get(0,'Screensize'));
 DIR = 'data/'; %B: Directory changed to work on my laptop
 FILENAME = 'DictyElectrotaxis_171116_001.tif';
 CHANNEL = [3 3];
-FRAME_RANGE = [155 157]; %B: looking at few frames for now, default "[155 271]"
+FRAME_RANGE = [155 185]; %B: looking at few frames for now, default "[155 271]"
 FRAME_JUMP = 1;
 ROI = [340 500 880 800];
 REGIONS_TO_IGNORE = [95 5 185 100; 190 1 280 25; 320 1 350 20; 310 140 390 210; 480 225 510 260];
@@ -34,7 +34,7 @@ AREA_LIMITS = [500 10000];
 % Plot parameters %
 % --------------- %
 
-PLOT_NUMS = 1:2; %plot numbers to show
+PLOT_NUMS = 1:7; %plot numbers to show
 PLOT_MARGIN_X = 0.003; %x-margin to put around each subplot
 PLOT_MARGIN_Y = 0; %y-margin to put around each subplot
 PLOT_NUM_COLS_LIST = [ 1 2 2 2 3 3 3 3 ]; %number of columns for subplot
