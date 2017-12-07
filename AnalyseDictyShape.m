@@ -18,10 +18,11 @@ set(gcf, 'Position', get(0,'Screensize'));
 DIR = 'data/'; %B: Directory changed to work on my laptop
 FILENAME = 'DictyElectrotaxis_171116_001.tif';
 CHANNEL = [3 3];
-FRAME_RANGE = [155 185]; %B: looking at few frames for now, default "[155 271]"
+FRAME_RANGE = [155 170]; %B: looking at few frames for now, default "[155 271]"
 FRAME_JUMP = 1;
 ROI = [340 500 880 800];
 REGIONS_TO_IGNORE = [95 5 185 100; 190 1 280 25; 320 1 350 20; 310 140 390 210; 480 225 510 260];
+AREA_LIMITS = [500 10000];
 
 
 %% Plot parameters:
@@ -94,39 +95,31 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         end
     end
 end
-im_bg = int16(round( im_bg/num_frames_range ));
+im_bg = int8(round( im_bg/num_frames_range ));
 
 
 %% Analyse Images
+
+%https://au.mathworks.com/help/images/examples/detecting-a-cell-using-image-segmentation.html
+
 
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     %Read image
     I1 = im(:,:,frameNum);
     
-    %Subtract background
-    I2 = abs(int16(I1) - im_bg);
-    I2 = uint8(I2);
-    
-
-    
-    %Test using threshold
-    I3 = zeros(ROI_height,ROI_width,'logical');
-    for i = 1:ROI_height
-        for j = 1:ROI_width
-            if I2(i,j) < 20
-                I3(i,j) = 0;
-            else 
-                I3(i,j) = 1;
-            end
-        end
-    end
-    
     %Edge detection
-    I4 = edge(I3, 'canny',0.37); 
+    [~, threshold] = edge(I1,'sobel');
+    fudgeFactor = 2.28;
+    I2 = edge(I1, 'sobel', threshold * fudgeFactor);
+
+    %Dilate image
+    se90 = strel('line', 4, 90);
+    se0 = strel('line', 4, 0);
+    I3 = imdilate(I2, [se90 se0]);
     
-    % Try looking at the bright spots? background is grey, cell exterior is
-    % black, cell interior is white.. 
+    %Fill gaps
+    I4 = imfill(I3, 'holes');
     
     %Plot images 
     plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
@@ -149,6 +142,64 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
     drawnow();
 end
+
+
+
+
+% for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
+%     
+%     Read image
+%     I1 = im(:,:,frameNum);
+%     
+%     Subtract background
+%     I2 = int8(I1) - im_bg;
+%     I2 = int8(I2>=0).*I2; %Interior 
+%     I2 = -int8(I2<=0).*I2; %Exterior
+%     I2 = uint8(I2);
+%     
+%     Test using threshold
+%     I3 = zeros(ROI_height,ROI_width,'logical');
+%     for i = 1:ROI_height
+%         for j = 1:ROI_width
+%             if I2(i,j) < 8 
+%                 I3(i,j) = 0;
+%             else 
+%                 I3(i,j) = 1;
+%             end
+%         end
+%     end
+%     
+%     Remove small and large areas
+%     I4 = I3 - bwareaopen(I3,AREA_LIMITS(2));
+%     I4 = bwareaopen(I4,AREA_LIMITS(1));
+%     
+%     %Edge detection
+%     I4 = edge(I3, 'canny',0.37); 
+%     
+%     Try looking at the bright spots? background is grey, cell exterior is
+%     black, cell interior is white.. 
+%     
+%     Plot images 
+%     plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
+%     plot_num_cols = PLOT_NUM_COLS_LIST(num_plots);
+%     plot_num = 0;
+%     for im_num = PLOT_NUMS
+%         plot_num = plot_num + 1;
+%         plot_i = floor((plot_num - 1)/plot_num_cols);
+%         plot_j = mod(plot_num - 1, plot_num_cols);
+%         pos = zeros(1,4);
+%         pos(1) = plot_j/plot_num_cols + PLOT_MARGIN_X;
+%         pos(2) = 1 - (plot_i+1)/plot_num_rows + PLOT_MARGIN_Y;
+%         pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
+%         pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
+%         subplot('Position', pos);
+%         eval(['imshow(I' num2str(im_num) ',''InitialMagnification'', ''fit'');']);
+%         title(IMAGE_NAMES(im_num), 'FontSize',16);
+%         
+%     end
+%     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
+%     drawnow();
+% end
 
 
 

@@ -22,7 +22,7 @@ set(gcf, 'Position', get(0,'Screensize'));
 DIR = 'data/'; %B: Directory changed to work on my laptop
 FILENAME = 'DictyElectrotaxis_171116_001.tif';
 CHANNEL = [3 3];
-FRAME_RANGE = [155 185]; %B: looking at few frames for now, default "[155 271]"
+FRAME_RANGE = [155 170]; %B: looking at few frames for now, default "[155 271]"
 FRAME_JUMP = 1;
 ROI = [340 500 880 800];
 REGIONS_TO_IGNORE = [95 5 185 100; 190 1 280 25; 320 1 350 20; 310 140 390 210; 480 225 510 260];
