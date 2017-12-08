@@ -18,7 +18,7 @@ set(gcf, 'Position', get(0,'Screensize'));
 DIR = 'data/'; %B: Directory changed to work on my laptop
 FILENAME = 'DictyElectrotaxis_171116_001.tif';
 CHANNEL = [3 3];
-FRAME_RANGE = [155 271]; %B: looking at few frames for now, default "[155 271]"
+FRAME_RANGE = [215 232]; %B: looking at few frames for now, default "[155 271]"
 FRAME_JUMP = 1;
 ROI = [340 500 880 800];
 REGIONS_TO_IGNORE = [95 5 185 100; 190 1 280 25; 320 1 350 20; 310 140 390 210; 480 225 510 260];
@@ -107,34 +107,45 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     %Read image
     I1 = im(:,:,frameNum);
+    temp = I1;
+    I1 = histeq(I1);
+    I1 = (I1 >= 230);
     
     %Edge detection
 %     [~, threshold] = edge(I1,'sobel');
 %     fudgeFactor = 2.28;
 %     I2 = edge(I1, 'sobel', threshold * fudgeFactor);
-    I2 = edge(I1,'canny',0.37); 
-
+    I2 = edge(I1,'canny',0.9); 
+    
     %Dilate image
-    dilationFactor = 10;
+    dilationFactor = 3; %10
     se90 = strel('line', dilationFactor, 90);
     se0 = strel('line', dilationFactor, 0);
     I3 = imdilate(I2, [se90 se0]);
     
-    %Fill gaps
+    %Fill gaps, Clear borders and smoothen 
     I4 = imfill(I3, 'holes');
-    
-    %Clear borders
-    I5 = imclearborder(I4, 4);
-    
-    %Smoothen
+    I4 = imclearborder(I4, 4);
     seD = strel('diamond',1);
-    I6 = imerode(I5, seD);
-    I6 = imerode(I6, seD);
+    I4 = imerode(I4, seD);
+    I4 = imerode(I4, seD);
+    
+    %Compute distance transform
+    I5 = bwdist(~I4);
+    
+    %Watershed
+    I6 = I5;
+    I6 = -I6;
+    I6(~I4) = Inf;
+    I6 = watershed(I6);
+    I6(~I4) = 0;
+    I6 = (I6>2);
     
     %Overlay outline on original
     cellOutline = bwperim(I6);
-    I7 = I1;
+    I7 = temp; %replace temp with I1
     I7(cellOutline) = 255;
+    
     
     %Plot images 
     plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
@@ -150,9 +161,8 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
         pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
         subplot('Position', pos);
-        eval(['imshow(I' num2str(im_num) ',''InitialMagnification'', ''fit'');']);
+        eval(['imshow(I' num2str(im_num) ',[],''InitialMagnification'', ''fit'');']);
         title(IMAGE_NAMES(im_num), 'FontSize',16);
-        
     end
     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
     drawnow();
