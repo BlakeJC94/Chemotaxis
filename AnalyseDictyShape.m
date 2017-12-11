@@ -18,7 +18,7 @@ set(gcf, 'Position', get(0,'Screensize'));
 DIR = 'data/'; %B: Directory changed to work on my laptop
 FILENAME = 'DictyElectrotaxis_171116_001.tif';
 CHANNEL = [3 3];
-FRAME_RANGE = [215 232]; %B: looking at few frames for now, default "[155 271]"
+FRAME_RANGE = [155 271]; %B: looking at few frames for now, default "[155 271]"
 FRAME_JUMP = 1;
 ROI = [340 500 880 800];
 REGIONS_TO_IGNORE = [95 5 185 100; 190 1 280 25; 320 1 350 20; 310 140 390 210; 480 225 510 260];
@@ -149,22 +149,23 @@ function frame_output = method_01(frame_input, PLOT_NUMS)
     %Read image and modify the contrast
     I1_orig = frame_input;
     I1 = histeq(I1_orig);
+    I1 = (I1 > 247);
     
     %Edge detection
 %     [~, threshold] = edge(I1,'sobel');
 %     fudgeFactor = 2.28;
 %     I2 = edge(I1, 'sobel', threshold * fudgeFactor);
-    I2 = edge(I1,'canny',0.975); 
+    I2 = edge(I1,'canny',0.925); 
 
     %Dilate image
-    dilationFactor = 3;
+    dilationFactor = 3.95;
     se90 = strel('line', dilationFactor, 90);
     se0 = strel('line', dilationFactor, 0);
     I3 = imdilate(I2, [se90 se0]);
     
     %Fill gaps
     I4 = imfill(I3, 'holes');
-    region = regionprops(I4);
+    %region = regionprops(I4);
     % Idea: 
     % - loop over each connected region and see how much they differ from a
     % circle (center of bounding box, radius as midpoint of rectangle
@@ -180,12 +181,52 @@ function frame_output = method_01(frame_input, PLOT_NUMS)
     
     
     %Clear borders
-    I5 = imclearborder(I4, 4);
+    %I5 = imclearborder(I4, 4);
+    I5 = bwareaopen(I4, 750);
     
     %Smoothen
     seD = strel('diamond',1);
     I6 = imerode(I5, seD);
     I6 = imerode(I6, seD);
+    
+    %Overlay outline on original
+    cellOutline = bwperim(I6);
+    I7 = I1_orig;
+    I7(cellOutline) = 255;
+    
+    frame_output = cell(1,max(PLOT_NUMS));
+    for i = PLOT_NUMS
+        eval(['frame_output{i} = I' num2str(i) ';'])
+    end
+    
+end
+
+
+
+
+function frame_output = method_02(frame_input, PLOT_NUMS)
+
+    %Maximise contrast and threshold to isolate cell interiors
+    I1_orig = frame_input;
+    I1 = histeq(I1_orig);
+    I1 = (I1 > 250);
+    
+    %Fill in image
+    I2 = imfill(I1, 'holes');
+
+    %Remove Noise
+    I3 = bwareaopen(I2, 100);
+    
+    %Dilate image
+    I4 = imclose(I3, true(2));
+    
+    
+%     %Smoothen
+%     seD = strel('diamond',1);
+%     I5 = imerode(I4, seD);
+%     I5 = imerode(I5, seD);
+    I5 = I4;
+    I6 = I4;
     
     %Overlay outline on original
     cellOutline = bwperim(I6);
