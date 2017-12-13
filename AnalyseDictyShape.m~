@@ -219,8 +219,17 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
 %     I1 = (I1 > 247);
     
     %Edge detection
-    I2 = edge(I1,'canny',0.955); 
-    I2 = 
+    I2 = edge(I1,'canny',0.985); 
+    I2 = filledgegaps(I2, 15);
+    I2 = imfill(I2, 'holes');
+%     I2 = bwareaopen(I2, 150);
+    
+% Idea: use fill edge gaps and Fill in initial canny output, 
+% if area of lines from canny / area of outline of fill < 1
+% then fill failed and shape is not complete
+% So redo canny with lower threshold until fill works
+%
+% But how can I limit this to just the motile cells? Do I need to? 
 
     %Dilate image
     dilationFactor = 7;
