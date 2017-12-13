@@ -31,7 +31,7 @@ AREA_LIMITS = [500 10000];
 %  - PLOT_NUM_COLS_LIST, PLOT_NUM_ROWS_LIST - number of rows/rows for subplot
 %  - IMAGE_NAMES - names for images
 
-PLOT_NUMS = 1:7; 
+PLOT_NUMS = 1:4; 
 PLOT_MARGIN_X = 0.003;
 PLOT_MARGIN_Y = 0;
 PLOT_NUM_ROWS_LIST = [ 1 1 2 2 2 2 3 3 ]; 
@@ -144,7 +144,9 @@ end
 
 
 
-function frame_output = method_01(frame_input, PLOT_NUMS)
+
+function frame_output = method_01_test(frame_input, PLOT_NUMS)
+% Maximise contrast, edge detection, dilation and filling
 
     %Read image and modify the contrast
     I1_orig = frame_input;
@@ -203,8 +205,51 @@ end
 
 
 
+function frame_output = method_01(frame_input, PLOT_NUMS)
+% Maximise contrast, edge detection, dilation and filling
 
-function frame_output = method_02(frame_input, PLOT_NUMS)
+    %Read image and modify the contrast
+    I1_orig = frame_input;
+    I1 = I1_orig;
+    I1 = histeq(I1_orig);
+%     I1 = (I1 > 247);
+    
+    %Edge detection
+    I2 = edge(I1,'canny',0.955); 
+
+    %Dilate image
+    dilationFactor = 7;
+    se90 = strel('line', dilationFactor, 90);
+    se0 = strel('line', dilationFactor, 0);
+    I3 = imdilate(I2, [se90 se0]);
+    
+    %Fill gaps
+    I3 = imfill(I3, 'holes');
+    
+    %Clear borders
+    %I5 = imclearborder(I4, 4);
+    
+    
+    %Smoothen
+    seD = strel('diamond',1);
+    I3 = imerode(I3, seD);
+    I3 = imerode(I3, seD);
+    
+    %Overlay outline on original
+    cellOutline = bwperim(I3);
+    I4 = I1_orig;
+    I4(cellOutline) = 255;
+    
+    frame_output = cell(1,max(PLOT_NUMS));
+    for i = PLOT_NUMS
+        eval(['frame_output{i} = I' num2str(i) ';'])
+    end
+    
+end
+
+
+function frame_output = method_02_test(frame_input, PLOT_NUMS)
+% Maximise contrast, threshold cell interiors, dilate
 
     %Maximise contrast and threshold to isolate cell interiors
     I1_orig = frame_input;
@@ -240,6 +285,34 @@ function frame_output = method_02(frame_input, PLOT_NUMS)
     
 end
 
+
+function frame_output = method_02(frame_input, PLOT_NUMS)
+    
+    %Maximise contrast and threshold to isolate cell interiors
+    I1_orig = frame_input;
+    I1 = histeq(I1_orig);
+    I1 = (I1 > 238);
+    
+    %Fill in image
+    I2 = imfill(I1, 'holes');
+
+    %Remove Noise
+    I2 = bwareaopen(I2, 250);
+    
+    %Dilate image
+    I2 = imclose(I2, true(7));
+    
+    %Overlay outline on original
+    cellOutline = bwperim(I2);
+    I3 = I1_orig;
+    I3(cellOutline) = 255;
+    
+    frame_output = cell(1,max(PLOT_NUMS));
+    for i = PLOT_NUMS
+        eval(['frame_output{i} = I' num2str(i) ';'])
+    end
+    
+end
 
 
 % for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)

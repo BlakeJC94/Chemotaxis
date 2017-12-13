@@ -31,7 +31,7 @@ AREA_LIMITS = [500 10000];
 %  - PLOT_NUM_COLS_LIST, PLOT_NUM_ROWS_LIST - number of rows/rows for subplot
 %  - IMAGE_NAMES - names for images
 
-PLOT_NUMS = 1:7; 
+PLOT_NUMS = 1:3; 
 PLOT_MARGIN_X = 0.003;
 PLOT_MARGIN_Y = 0;
 PLOT_NUM_ROWS_LIST = [ 1 1 2 2 2 2 3 3 ]; 
@@ -144,7 +144,9 @@ end
 
 
 
-function frame_output = method_01(frame_input, PLOT_NUMS)
+
+function frame_output = method_01_test(frame_input, PLOT_NUMS)
+% Maximise contrast, edge detection, dilation and filling
 
     %Read image and modify the contrast
     I1_orig = frame_input;
@@ -204,28 +206,29 @@ end
 
 
 
-function frame_output = method_02(frame_input, PLOT_NUMS)
+function frame_output = method_02_test(frame_input, PLOT_NUMS)
+% Maximise contrast, threshold cell interiors, dilate
 
     %Maximise contrast and threshold to isolate cell interiors
     I1_orig = frame_input;
     I1 = histeq(I1_orig);
-    I1 = (I1 > 254);
+    I1 = (I1 > 250);
     
     %Fill in image
     I2 = imfill(I1, 'holes');
 
     %Remove Noise
-    I3 = bwareaopen(I2, 150);
+    I3 = bwareaopen(I2, 100);
     
     %Dilate image
-    I4 = imclose(I3, strel('disk',3));
+    I4 = imclose(I3, true(2));
     
     
-    %Smoothen
-    seD = strel('diamond',1);
-    I5 = imerode(I4, seD);
-    I5 = imerode(I5, seD);
-    
+%     %Smoothen
+%     seD = strel('diamond',1);
+%     I5 = imerode(I4, seD);
+%     I5 = imerode(I5, seD);
+    I5 = I4;
     I6 = I4;
     
     %Overlay outline on original
@@ -240,6 +243,34 @@ function frame_output = method_02(frame_input, PLOT_NUMS)
     
 end
 
+
+function frame_output = method_02(frame_input, PLOT_NUMS)
+    
+    %Maximise contrast and threshold to isolate cell interiors
+    I1_orig = frame_input;
+    I1 = histeq(I1_orig);
+    I1 = (I1 > 234);
+    
+    %Fill in image
+    I2 = imfill(I1, 'holes');
+
+    %Remove Noise
+    I2 = bwareaopen(I2, 250);
+    
+    %Dilate image
+    I2 = imclose(I2, true(5));
+    
+    %Overlay outline on original
+    cellOutline = bwperim(I2);
+    I3 = I1_orig;
+    I3(cellOutline) = 255;
+    
+    frame_output = cell(1,max(PLOT_NUMS));
+    for i = PLOT_NUMS
+        eval(['frame_output{i} = I' num2str(i) ';'])
+    end
+    
+end
 
 
 % for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
