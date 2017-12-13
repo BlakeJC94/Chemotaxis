@@ -132,15 +132,11 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         title(IMAGE_NAMES(im_num), 'FontSize',16);
         
         if im_num == PLOT_NUMS(end)
-           hold on
            centroids = data_output{1};
-           
-           centroids = centroids(centroids>0);
-           
-           
-           
-           
-           hold off
+
+           hold on;
+           plot(centroids(:,1), centroids(:,2), 'rx');           
+           hold off;
         end
         
     end
@@ -224,6 +220,7 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
     
     %Edge detection
     I2 = edge(I1,'canny',0.955); 
+    I2 = 
 
     %Dilate image
     dilationFactor = 7;
@@ -233,6 +230,7 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
     
     %Fill gaps
     I3 = imfill(I3, 'holes');
+    I3 = bwareaopen(I3, 800);
     
     %Clear borders
     %I5 = imclearborder(I4, 4);
@@ -248,8 +246,9 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
     regions = regionprops(I3);
     centoids = zeros(10,2);
     for i = 1:length(regions)
-        centroids(i) = regions(i).Centroid;
+        centroids(i,:) = regions(i).Centroid;
     end
+    centroids((sum(centroids')>0)',:);
     
     %Label connected regions
     cc = bwconncomp(I3);
