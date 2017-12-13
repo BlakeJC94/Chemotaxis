@@ -106,7 +106,8 @@ im_bg = int8(round( im_bg/num_frames_range ));
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     frame_input = im(:,:,frameNum);
-    frame_output = method_01(frame_input, PLOT_NUMS);
+%     frame_output = method_01(frame_input, PLOT_NUMS);
+    [frame_output, data_output] = method_01(frame_input, PLOT_NUMS);
     for i = PLOT_NUMS
         eval(['I' num2str(i) ' = frame_output{i};'])
     end
@@ -128,12 +129,15 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
         subplot('Position', pos);
         eval(['imshow(I' num2str(im_num) ',''InitialMagnification'', ''fit'');']);
-%         if im_num == 7
-%            hold on
-%            A = regionprops(
-%            hold off
-%         end
         title(IMAGE_NAMES(im_num), 'FontSize',16);
+        
+        if im_num == PLOT_NUMS(end)
+           centroids = data_output{1};
+
+           hold on;
+           plot(centroids(:,1), centroids(:,2), 'rx');           
+           hold off;
+        end
         
     end
     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
@@ -205,7 +209,7 @@ end
 
 
 
-function frame_output = method_01(frame_input, PLOT_NUMS)
+function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
 % Maximise contrast, edge detection, dilation and filling
 
     %Read image and modify the contrast
@@ -225,6 +229,7 @@ function frame_output = method_01(frame_input, PLOT_NUMS)
     
     %Fill gaps
     I3 = imfill(I3, 'holes');
+    I3 = bwareaopen(I3, 800);
     
     %Clear borders
     %I5 = imclearborder(I4, 4);
@@ -234,9 +239,22 @@ function frame_output = method_01(frame_input, PLOT_NUMS)
     seD = strel('diamond',1);
     I3 = imerode(I3, seD);
     I3 = imerode(I3, seD);
+    cellOutline = bwperim(I3);
+    
+    %Extract centroids
+    regions = regionprops(I3);
+    centoids = zeros(10,2);
+    for i = 1:length(regions)
+        centroids(i,:) = regions(i).Centroid;
+    end
+    centroids((sum(centroids')>0)',:);
+    
+    %Label connected regions
+    cc = bwconncomp(I3);
+    labeled = labelmatrix(cc);
+    I3 = label2rgb(labeled);
     
     %Overlay outline on original
-    cellOutline = bwperim(I3);
     I4 = I1_orig;
     I4(cellOutline) = 255;
     
@@ -244,6 +262,9 @@ function frame_output = method_01(frame_input, PLOT_NUMS)
     for i = PLOT_NUMS
         eval(['frame_output{i} = I' num2str(i) ';'])
     end
+    
+    data_output = cell(1,1);
+    data_output{1} = centroids;
     
 end
 
