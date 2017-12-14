@@ -216,11 +216,10 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
     I1_orig = frame_input;
     I1 = I1_orig;
     I1 = histeq(I1_orig);
-%     I1 = (I1 > 247);
     
     %Edge detection
-    I2 = edge(I1,'canny',0.97); 
-    I2 = filledgegaps(I2, 15);
+    I2 = edge(I1,'canny',0.97); %max cont: 0.97
+%     I2 = filledgegaps(I2, 10);
     I2 = imfill(I2, 'holes');
 %     I2 = bwareaopen(I2, 150);
     
@@ -233,7 +232,7 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
 % But how can I limit this to just the motile cells? Do I need to? 
 
     %Dilate image
-    dilationFactor = 7;
+    dilationFactor = 5;
     se90 = strel('line', dilationFactor, 90);
     se0 = strel('line', dilationFactor, 0);
     I3 = imdilate(I2, [se90 se0]);
@@ -254,7 +253,7 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
     
     %Extract centroids
     regions = regionprops(I3);
-    centoids = zeros(10,2);
+    centroids = zeros(10,2);
     for i = 1:length(regions)
         centroids(i,:) = regions(i).Centroid;
     end
@@ -276,6 +275,12 @@ function [frame_output, data_output] = method_01(frame_input, PLOT_NUMS)
     
     data_output = cell(1,1);
     data_output{1} = centroids;
+    
+    % Maybe we need an adaptive dilation factor? 
+    % Check if motile dicty filled in
+    % - Look for object with centroid nearest to motile centroid in
+    % previous frame.
+    % If not filled in, increase dilation a smidge and check again
     
 end
 
