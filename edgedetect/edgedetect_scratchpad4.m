@@ -4,7 +4,7 @@ close all;
 %% Import test imag, filter and output label matrix for connected regions
 im = imread('shapessm.jpg');
 I1 = im;
-% figure(1); imshow(I1); title('Original image'); pause(0.5);
+figure(1); imshow(I1); title('Original image'); pause(0.5);
 
 I2 = edge(I1, 'canny');
 I2 = bwareaopen(I2, 20);
@@ -30,14 +30,14 @@ I3 = imerode(I3, seD);
 
 cc = bwconncomp(I3);
 labeled = labelmatrix(cc);
-imshow(label2rgb(labeled));
+figure(1); imshow(label2rgb(labeled)); title('rgblabelled regions'); pause(0.5);
 
 
 %% Extract region properties
 regions = regionprops(I3);
-i = 2; % Looking at floppy disk 
-
+i = 2; % Looking at floppy disk
 obj = ismember(labeled, i) > 0;
+figure(1); imshow(obj); title(['Object i = ' num2str(i)]); pause(0.5);
 
 obj_boundary = bwboundaries(obj); %isolate object bondary in image
 obj_boundary = cell2mat(obj_boundary); %convert 1s on image into coordinates
@@ -53,7 +53,7 @@ angles = angles*180/pi + 180;
 distances = distances(index);
 
 % PLOT DIST EVERY angle_step DEGREES
-angle_step = 30;
+angle_step = 1;
 if mod(360,angle_step) ~= 0
     warning('angle_step not an integer divisor of 360');
 end
@@ -65,10 +65,13 @@ angles = floor(angles / angle_step) * angle_step;
 for k = 1:length(angles_vec)
     dist_vec(k) = distances(find(angles >= angles_vec(k), 1));
 end
-plot(angles_vec,dist_vec, 'b-');
+figure(2); subplot(1,2,1);
+plot(angles_vec,dist_vec, 'bo-');
 xlabel('angles (degrees)');
 ylabel('dist');
 
+subplot(1,2,2);
+polarplot(angles_vec*(pi/180),dist_vec, 'bo-');
 
 % -------------
 

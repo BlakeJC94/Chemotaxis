@@ -1,0 +1,54 @@
+Notes from meeting 2017/12/15
+----------------------------------------------------------------
+
+** Look at more data!! pick out 5 or so cases that characterise the average 
+    behaviour of these cells. Test new methods on this suite.
+
+
+Halt work on current perimeter analysis method in edgedetect, this method 
+is not suitable for the irregular polygons these motile cells are usually 
+found as. This wont be able to tell us the number of arms we have reliably.
+
+
+We are left with 2 methods:
+
+
+1. 'Shapedist' metric
+    - Set centroid as origin
+        - if centroid is not in region, set origin to be midpoint of 
+            closest boundary point and nex closest boundary point 
+            in the same direction.
+    - Parameterise the boundary as variable 's', and step anticlockwise 
+    - For each step, find length of shortest path within shape to origin
+    - Number of peaks (w/thrs) will give number of arms
+
+* Can be accomplished by using some sort of distance transform on region
+    * Set origin as 0, neighbouring pixels inside shape increase by 1 and 
+        neighbouring pixels outside shape are set to -1
+* Match corresponding boundary pixels with values in transformed array
+* (Will require new methods of array manipulation)
+
+
+2. Skeletal structures
+    - Replace image by skeleton
+    - Number of free ends will give number of arms
+
+* Maybe use the bwmorph(I, 'thin', Inf) operation, then use  
+    - bwmorph(I,'endpoints') for endpoints,
+    - bwmorph(I,'branch') for branch points
+    - if cleaning is needed, try running bwmorph(I6,'spur',n) for n times
+* number of endpoints a certain distance away from a branching point will 
+    give a good measure of the number of arms. 
+    * threshold distance can be used to exclude 'bumps' 
+
+* ISSUE: May not work well on regions with random lines coming off it, 
+    see later frames in first ROI when contrast between cell interior
+    and cell exterior more vague
+    * An option to fix this may be to have a persistent skeleton object 
+        overlayed? similar to how the centroid to tracked now
+        * Indexing each branch my become problematic?
+
+
+Next meeting in 2018, will remain in email contact in the meantime
+
+
