@@ -169,6 +169,75 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     % previous frame.
     % If not filled in, increase dilation a smidge and check again
     
+    % ------------
+    
+%     %Read image and modify the contrast
+%     I1_orig = frame_input;
+%     I1 = I1_orig;
+%     I1 = histeq(I1_orig);
+%     
+% %     %Edge detection
+% %     I2 = edge(I1,'canny',0.97); %max cont: 0.97
+% %     %     I2 = filledgegaps(I2, 10);
+% %     I2 = imfill(I2, 'holes');
+% %     %     I2 = bwareaopen(I2, 150);
+%     
+%     %or Extract brightest pixels
+%     I2 = I1>240;%250
+%     I2 = bwmorph(I2, 'majority', 5);
+%     I2 = bwareaopen(I2, 200);
+%     
+%     dilationFactor = 5; %5.5
+%     se90 = strel('line', dilationFactor, 90);
+%     se0 = strel('line', dilationFactor, 0);
+%     I2 = imdilate(I2, [se90 se0]);
+%     
+%     I2 = bwareaopen(I2, 300);
+%     
+%     % Idea: use fill edge gaps and Fill in initial canny output,
+%     % if area of lines from canny / area of outline of fill < 1
+%     % then fill failed and shape is not complete
+%     % So redo canny with lower threshold until fill works
+%     %
+%     % But how can I limit this to just the motile cells? Do I need to?
+%     
+%     %Dilate image
+%     dilationFactor = 7; %5.5
+%     se90 = strel('line', dilationFactor, 90);
+%     se0 = strel('line', dilationFactor, 0);
+%     I3 = imdilate(I2, [se90 se0]);
+%     
+%     %Fill gaps
+%     I3 = imfill(I3, 'holes');
+%     I3 = bwareaopen(I3, 800);
+%     
+%     %Clear borders
+%     %I5 = imclearborder(I4, 4);
+%     
+%     
+%     %Smoothen
+%     seD = strel('diamond',1);
+%     I3 = imerode(I3, seD);
+%     I3 = imerode(I3, seD);
+%     cellOutline = bwperim(I3);
+%     
+%     %Extract centroids
+%     regions = regionprops(I3);
+%     regions_cell = struct2cell(regions);
+%     cent_cell = regions_cell(2,:);
+%     centroids = cell2mat(cent_cell');
+%     
+%     %Label connected regions
+%     cc = bwconncomp(I3);
+%     labeled = labelmatrix(cc);
+%     I3 = label2rgb(labeled);
+%     
+%     %Overlay outline on original
+%     I4 = I1_orig;
+%     I4(cellOutline) = 255;
+    
+    % ------------
+    
     
     if frameNum == FRAME_RANGE(1)
         cent_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
