@@ -47,28 +47,36 @@ y = obj_boundary(:,1);
 xCenter = regions(i).Centroid(1);
 yCenter = regions(i).Centroid(2);
 
-distances = sqrt((x - xCenter).^2 + (y - yCenter).^2);
-
-angles = zeros(size(x));
-for k = 1 : length(x)
-	angles(k) = atand((y(k)-yCenter) / (x(k)-xCenter));
-
-	if y(k) >= yCenter && x(k) >= xCenter
-		quadrant = 1;
-	elseif y(k) >= yCenter && x(k) <= xCenter
-		angles(k) = 180 + angles(k);
-		quadrant = 2;
-	elseif y(k) <= yCenter && x(k) < xCenter
-		angles(k) = 180 + angles(k);
-		quadrant = 3;
-	elseif y(k) <= yCenter && x(k) >= xCenter
-		angles(k) = 360 + angles(k);
-		quadrant = 4;
-	end
-end
-
+[angles, distances] = cart2pol(x-xCenter,y-yCenter);
+angles = angles*180/pi + 180;
 [angles, index] = sort(angles);
 distances = distances(index);
+
 plot(angles,distances, 'b-');
 xlabel('angles (degrees)');
 ylabel('dist');
+
+
+% -------------
+
+% distances = sqrt((x - xCenter).^2 + (y - yCenter).^2);
+% angles = zeros(size(x));
+% for k = 1 : length(x)
+% 	angles(k) = atand((y(k)-yCenter) / (x(k)-xCenter));
+% 
+% 	if y(k) >= yCenter && x(k) >= xCenter
+% 		quadrant = 1;
+% 	elseif y(k) >= yCenter && x(k) <= xCenter
+% 		angles(k) = 180 + angles(k);
+% 		quadrant = 2;
+% 	elseif y(k) <= yCenter && x(k) < xCenter
+% 		angles(k) = 180 + angles(k);
+% 		quadrant = 3;
+% 	elseif y(k) <= yCenter && x(k) >= xCenter
+% 		angles(k) = 360 + angles(k);
+% 		quadrant = 4;
+% 	end
+% end
+% [angles, index] = sort(angles);
+% distances = distances(index);
+
