@@ -3,7 +3,7 @@ close all;
 clear all;
 
 % load test image
-im = im2bw(imread('test2.png'));
+im = imbinarize(imread('test2.png'));
 imshow(im, [], 'InitialMagnification', 'fit');
 
 % extract center and plot
@@ -23,17 +23,16 @@ disp('---- dist_data ----')
 disp(dist_data)
 
 % select pixel and update dist_data
-selected_pixel = [center(2), center(1)];
+selected_pixel = [center;
 display(selected_pixel);
 dist_data = update_dist(im, dist_data, selected_pixel);
 disp('---- update 1 dist_data ----')
 disp(dist_data)
 
 % select new pixel and update again
-selected_pixel = selected_pixel + int8([-1,0]);
+selected_pixel = center + int8([-1,-1]);
 display(selected_pixel);
 dist_data = update_dist(im, dist_data, selected_pixel);
-dist_data(center(2), center(1)) = 0;
 disp('---- update 2 dist_data ----')
 disp(dist_data)
 
