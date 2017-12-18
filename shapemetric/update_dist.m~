@@ -1,0 +1,44 @@
+function [dist_data_new] = update_dist(im, dist_data_old, selected_index)
+% Analyse nbhd around selected_pixel in im and add new dist_data
+
+% convert coordinates to index
+% selected_index = (selected_pixel(2)-1)*size(im,2) + selected_pixel(1);
+selected_pixel(1) = mod(ind, size(im,2));
+selected_pixel(2) = (selected_index - selected_pixel(1))/size(im,1) + 1;
+selected_value = dist_data_old(selected_index);
+
+% initialize output
+dist_data_new = dist_data_old;
+
+% loop over rows above and below selected_pixel
+x_nbhd = -1:1;
+for i = x_nbhd
+    % loop over columns left and right of celecter_pixel
+    % (excluding selected_pixel)
+    if i ~= 0
+        y_nbhd = -1:1;
+    else
+        y_nbhd = -1:2:1;
+    end
+    
+    for j = y_nbhd
+        
+        % select target pixel
+        target_pixel = selected_pixel + int8([i, j]);
+        % convert target coordinates to target index
+        target_index = (target_pixel(2)-1)*size(im,2)+target_pixel(1);
+        
+        % if target pixel is outside shape, then set target to -9
+        if im(target_index) == 0
+            dist_data_new(target_index) = -9;
+            
+            % otherwise if the target pixel is in the shape and has not been
+            % filled in yet, then set target in data_dist to new value
+        elseif (im(target_index) ~= 0) && (dist_data_old(target_index) == 0)
+            dist_data_new(target_index) = selected_value + 1;
+            
+        end
+    end
+end
+
+end
