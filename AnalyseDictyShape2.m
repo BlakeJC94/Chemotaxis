@@ -1,4 +1,4 @@
-function AnalyseDictyShape
+function AnalyseDictyShape2
 % Function for analysing the images from Dicty data
 % Based on code from David M. Richards - 14/08/2017
 % Blake Cook - 6/12/2017
@@ -211,12 +211,10 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     labeled = labelmatrix(cc);
     I3 = label2rgb(labeled);
     
-    % Tried using a watershed transform to segment cells, but seems to have
-    % no effect. Maybe need sot be magnified?
 %     I3 = bwdist(~I3);
 %     L = watershed(I3);
 %     cellOutline(L == 0) = 0;
-    
+
     %Overlay outline on original
     I4 = I1_orig;
     I4(cellOutline) = 255;
@@ -253,7 +251,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
         pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
         subplot('Position', pos);
-        eval(['imshow(I' num2str(im_num) ',''InitialMagnification'', ''fit'');']);
+        eval(['imshow(I' num2str(im_num) ',[],''InitialMagnification'', ''fit'');']);
         title(IMAGE_NAMES(im_num), 'FontSize',16);
         
         if im_num == PLOT_NUMS(end)
