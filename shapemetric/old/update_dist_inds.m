@@ -1,4 +1,4 @@
-function [dist_data_new input_new] = update_dist_inds(im, dist_data_old, input_old)
+function [dist_data_new, input_new] = update_dist_inds(im, dist_data_old, input_old)
 % Performs one step of the shapedist transform
 % Starting from an initial point 0 inside the shape, look at nbhd (8) and
 % update points with +1 if inside the shape and -1 if outside shape.
@@ -20,8 +20,12 @@ function [dist_data_new input_new] = update_dist_inds(im, dist_data_old, input_o
 %   dist_data_new - int8 array next step, after updating input_old points
 %   input_new - row vector (double) of indices to select on next step
 % 
+% 
+% TODO: Make selecting pixels to analyse more efficient
+% 
+% 
 % Blake Cook 2017-12-18
-
+% ------------------------
 
 
 % initialize output

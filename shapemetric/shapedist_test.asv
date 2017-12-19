@@ -1,0 +1,11 @@
+% initialize and load test image
+close all;
+clear all;
+im = im2bw(imread('test2.png'));
+% imshow(im, [], 'InitialMagnification', 'fit');
+
+% extract center and plot
+regions = regionprops(im);
+centroid = regions(1).Centroid;
+center = round(centroid);
+
