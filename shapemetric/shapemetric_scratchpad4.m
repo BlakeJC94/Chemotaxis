@@ -31,15 +31,16 @@ display(selected_pixel);
 selected_index = pix2ind(selected_pixel,im);
 
 old_input = selected_index;
-
+new_input = 0;
 
 
 loop = 0;
-while loop < 8
+while (~isempty(new_input)) || (loop>10)
     
     loop = loop + 1;
     [dist_data, new_input] = update_dist_inds(im, dist_data, old_input);
     old_input = new_input;
+    
     
     disp(['---- update ' num2str(loop) ' dist_data ----']);
     out = [0:14; (1:14)' dist_data];
