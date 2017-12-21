@@ -1,11 +1,21 @@
-% initialize and load test image
-close all;
-clear all;
-im = im2bw(imread('test2.png'));
-% imshow(im, [], 'InitialMagnification', 'fit');
+%load test image
+im = im2bw(imread('test.png'));
 
-% extract center and plot
-regions = regionprops(im);
-centroid = regions(1).Centroid;
-center = round(centroid);
+%test function    
+im_sd = shapedist(im);
+
+% disp(['---- shapedist output ----']);
+% out = [0:14; (1:14)' im_sd];
+% disp(out);
+
+subplot(1,2,1)
+imshow(im, [], 'InitialMagnification', 'fit');
+title('Original binary image')
+
+subplot(1,2,2)
+imshow(mat2gray(im_sd), [], 'InitialMagnification', 'fit');
+title('Greyscale shapedist');
+
+figure;
+imshow(mat2gray(im(im_sd>0))
 

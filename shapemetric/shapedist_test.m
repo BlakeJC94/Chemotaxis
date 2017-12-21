@@ -16,3 +16,7 @@ subplot(1,2,2)
 imshow(mat2gray(im_sd), [], 'InitialMagnification', 'fit');
 title('Greyscale shapedist');
 
+figure;
+imshow(im_sd.*int8(bwperim(im)), [], 'InitialMagnification', 'fit');
+
+ 
