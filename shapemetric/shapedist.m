@@ -40,10 +40,9 @@ end
 %get center pixel
 size_im = size(im);
 center_pixel = round(regions(1).Centroid);
-center_index = sub2ind(size_im, center_pixel(1), center_pixel(2));
 
 %select new center if centroid is not inside the shape
-if im(center_index) == 0
+if im(center_pixel(1), center_pixel(2)) == 0
     
     disp('Centroid not located inside shape, finding initial starting point');
     imshow(im,[],'InitialMagnification', 'fit');
@@ -78,8 +77,6 @@ if im(center_index) == 0
     center_pixel(2) = round((x(ray_index) + x(nearest_index))/2);
     center_pixel(1) = round((y(ray_index) + y(nearest_index))/2);
     
-    center_index = sub2ind(size_im, center_pixel(1), center_pixel(2));
-    
 %     % -- debug --
 %     hold on; plot(center_pixel(2), center_pixel(1), 'm+'); hold off;
 %     pause(0.5);
@@ -94,8 +91,8 @@ if im(center_index) == 0
 end
 
 %initialise output and input for loop
-im_sd = zeros(size(im), 'int16'); %change int size here if image too big)
-input = center_index;
+im_sd = zeros(size(im), 'int8'); %change int size here if image too big)
+input = [center_pixel(1), center_pixel(2)];
 
 %set loop maximum to be largest distance of pixels between im boundaries
 %plus 2 (include one extra loop for center pixel and another for safety)
@@ -125,7 +122,7 @@ end
 
 
 
-function [dist_data_new, input_new, stop_flag] = shapedist_loop(im, dist_data_old, input_old)
+function [dist_data_new, input_new, stop_flag] = shapedist_loop(im, dist_data_old, input)
 % Performs one step of the shapedist transform.
 %
 % For a selected point with value n, non-written neighbouring points will
@@ -133,34 +130,33 @@ function [dist_data_new, input_new, stop_flag] = shapedist_loop(im, dist_data_ol
 %
 % Ignores selecting exterior points (value -1)
 %
-% Function will cycle through selected points in input_old, look at their
+% Function will cycle through selected points in input, look at their
 % nbhds and update them as above
 %
 % INPUTS:
 %   im - binary image of a region
 %   dis_data_old - int8 array (dims of im) previous step of shapedist
-%   input_old - 1 x n vector (double) of indices to select and update
+%   input - n x 2 array (double) of pixels to select and update
 %
 % OUTPUTS:
-%   dist_data_new - int8 array next step, after updating input_old points
-%   input_new - row vector (double) of indices to select on next step
+%   dist_data_new - int8 array next step, after updating input points
+%   input_new - m x 2 array (double) of pixels to select on next step
 %
 % ------------------------
 
 
 % initialize output
-size_im = size(im);
 dist_data_new = dist_data_old;
-input_new = zeros(1,8*length(input_old));
-stop_flag = 0;
-tmp = 0;
+input_new = zeros(8*size(input,1),2);
+stop_flag = 0; %signal to stop loop in shapedist
+save_index = 0; %row of input_new to update
 
-%for each index input
-for selected_index = input_old
+%for each row in input
+for selected_index = 1:size(input,1)
     
-    %convert index to pixel
-    [selected_pixel(1),selected_pixel(2)] = ind2sub(size_im, selected_index);
-    selected_value = dist_data_old(selected_index);
+    %select pixel and get value
+    selected_pixel = input(selected_index,:);
+    selected_value = dist_data_old(selected_pixel(1), selected_pixel(2));
     
     %warn if values are too large for int8
     if selected_value >= 127
@@ -186,16 +182,16 @@ for selected_index = input_old
                 %get target_pixel
                 target_pixel = selected_pixel + [i, j];
                 
-                %convert target_pixel to target_index
-                target_index = sub2ind(size_im, target_pixel(1), target_pixel(2));
-                
                 %if target_pixel is outside shape, set target value to -1
                 %otherwise, if inside shape and has not been written to yet
                 %then update to new value and add to list input_new
-                if im(target_index) == 0
-                    dist_data_new(target_index) = -1;
-                elseif (im(target_index) ~= 0) && (dist_data_new(target_index) == 0)
-                    dist_data_new(target_index) = selected_value + 1;
+                if im(target_pixel(1), target_pixel(2)) == 0
+                    dist_data_new(target_pixel(1), target_pixel(2)) = -1;
+                    
+                elseif (im(target_pixel(1), target_pixel(2)) ~= 0) ...
+                        && (dist_data_new(target_pixel(1), target_pixel(2)) == 0)
+                    
+                    dist_data_new(target_pixel(1), target_pixel(2)) = selected_value + 1;
                     
                     %check if target pixel is on boundary of image
                     boundary_flag = (target_pixel(1) == [1, size(im,1)])...
@@ -204,8 +200,8 @@ for selected_index = input_old
                     %if target pixel is not on boundary of image, then add
                     %to list of pixels to update on next loop
                     if boundary_flag ~= 1
-                        tmp = tmp+1;
-                        input_new(tmp) = target_index;
+                        save_index = save_index+1;
+                        input_new(save_index,:) = target_pixel;
                     end
                     
                 end
@@ -219,8 +215,8 @@ for selected_index = input_old
 end
 
 %remove empty entries from input_new
-%debug: warn if there are no new indices to update
-input_new = sort(input_new(input_new>0));
+input_new = input_new(1:save_index,:);
+%if empty, stop loop in shapedist
 if isempty(input_new) == 1
     stop_flag = 1;
 end
