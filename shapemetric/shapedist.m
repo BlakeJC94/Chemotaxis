@@ -16,8 +16,6 @@ function im_sd = shapedist(im)
 %   im - integer array of shapedist transform
 %
 % TODO: Make selecting pixels in loop function to analyse more efficient.
-% TODO: Propse new center if centroid is located outside region
-% TODO: handle larger images
 %
 % Blake Cook 2017-12-19
 % ------------------------
@@ -26,7 +24,7 @@ function im_sd = shapedist(im)
 regions = regionprops(im);
 %if there is more than one region, select region with largest area
 if length(regions)>1
-    disp('More than one region detected, selection largest connect component');
+    disp('More than one region detected, selection largest connected component');
     im_label = labelmatrix(bwconncomp(im));
     
     regions_cell = struct2cell(regions);
