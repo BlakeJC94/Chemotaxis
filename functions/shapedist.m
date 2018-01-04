@@ -1,3 +1,4 @@
+
 function im_sd = shapedist(im)
 % Performs shapedist transform on binary image of single region. Useful for
 % finding lengths of shortest paths contained in shape from a center point
@@ -13,7 +14,7 @@ function im_sd = shapedist(im)
 %   im - binary image of a region
 %
 % OUTPUTS:
-%   im - integer array of shapedist transform
+%   im_sd - integer array of shapedist transform
 %
 % TODO: Make selecting pixels in loop function to analyse more efficient.
 %
@@ -35,9 +36,11 @@ if length(regions)>1
     regions = regionprops(im);
 end
 
-%get center pixel
+%get center pixel, returns in x-y coords
 size_im = size(im);
 center_pixel = round(regions(1).Centroid);
+%convert to row-col coords
+center_pixel = fliplr(center_pixel);
 
 %select new center if centroid is not inside the shape
 if im(center_pixel(1), center_pixel(2)) == 0
@@ -51,27 +54,28 @@ if im(center_pixel(1), center_pixel(2)) == 0
     x = boundary(:,2);
     y = boundary(:,1);
     
-    xCenter = center_pixel(1);
-    yCenter = center_pixel(2);
+    xCenter = center_pixel(2);
+    yCenter = center_pixel(1);
     
     [angles, distances] = cart2pol(x-xCenter,y-yCenter);
     
     %get index of boundary point with shortest dist to centroid
     nearest_index = find(distances == min(distances));
+    nearest_index = nearest_index(1);
     
     %get index of point with smallest angular deviation
     search_angle = angles(nearest_index);
     sorted_angles = sort(abs(angles-search_angle));
     
     %find possible indidies, sort possible distances by length
-    possible_index = abs(angles-search_angle) == sorted_angles(2);
+    possible_index = (abs(angles - search_angle) <= sorted_angles(2));
     sorted_distances = sort(distances(possible_index));
     
     %get index of point with next smallest distance from centroid
     ray_index = find(distances == sorted_distances(2) & possible_index);
     
     
-    %propose new center
+    %propose new center, convert x-y to row-col
     center_pixel(2) = round((x(ray_index) + x(nearest_index))/2);
     center_pixel(1) = round((y(ray_index) + y(nearest_index))/2);
     

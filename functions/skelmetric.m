@@ -1,4 +1,4 @@
-function [im_enconn, peakNum] = skelmetric(im)
+function [peakNum, im_enconn] = skelmetric(im, peakThreshold)
 % Performs skelmetric transform on binary image of single region. 
 %
 % Region is skeletonized and branchpoints and endpoints are identified.
@@ -24,6 +24,11 @@ function [im_enconn, peakNum] = skelmetric(im)
 %
 % Blake Cook 2017-12-27
 % ------------------------
+
+%Initialise key vars
+if nargin < 2
+    peakThreshold = 0.07;
+end
 
 %get region data
 regions = regionprops(im);
@@ -99,7 +104,6 @@ else
     regions_enconn = regionprops(im_enconn);
     peakNum = 0;
     skelLength = cell2mat(struct2cell(regionprops(im_sm,'Area')));
-    peakThreshold = 0.07;
     for k = 1:length(regions_enconn)
         area_en = regions_enconn(k).Area;
         if area_en/skelLength > peakThreshold

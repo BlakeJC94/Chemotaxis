@@ -10,11 +10,13 @@ imshow(im, [], 'InitialMagnification', 'fit');
 title('Original binary image')
 
 %test function
-[im_enconn, peakNum] = skelmetric(im);
+[peakNum, im_enconn] = skelmetric(im);
 
 subplot(1,2,2)
 imshow(im_enconn, [], 'InitialMagnification', 'fit');
-title(['end-branch connections, ' num2str(peakNum) ' arms']);
+
+
+text(0,0,['end-branch connections, ' num2str(peakNum) ' arms'],'Color','g');
 
 
 

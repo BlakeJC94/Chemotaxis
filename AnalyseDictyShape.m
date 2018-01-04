@@ -10,6 +10,7 @@ function AnalyseDictyShape
 %  - ROI - region of interest as [x1 y1 x2 y2]; [-1 -1 Inf Inf] => full image
 %  - REGIONS_TO_IGNORE - regions to remove from final image as [x1 y1 x2 y2]
 
+addpath('functions/')
 warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning');
 clf;
 set(gcf, 'Position', get(0,'Screensize'));
@@ -211,11 +212,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     labeled = labelmatrix(cc);
     I3 = label2rgb(labeled);
     
-    % Tried using a watershed transform to segment cells, but seems to have
-    % no effect. Maybe need sot be magnified?
-%     I3 = bwdist(~I3);
-%     L = watershed(I3);
-%     cellOutline(L == 0) = 0;
+    
     
     %Overlay outline on original
     I4 = I1_orig;
@@ -225,18 +222,24 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     % ------------
     
-    
+    frameIndex = frameNum - (FRAME_RANGE(1)-1);
     if frameNum == FRAME_RANGE(1)
         cent_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
-        cent_hist(1,:) = centroids(2,:); %HARDCODE follow initial specified centroid
-    else
-        frameIndex = frameNum - (FRAME_RANGE(1)-1);
+        peak_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
+        followIndex = 2; %HARDCODE follow initial specified centroid
         
+    else
         cent_dists = sqrt(sum((centroids - cent_hist(frameIndex-1,:)).^2, 2));
-        cent_hist(frameIndex,:) = centroids(cent_dists == min(cent_dists), :);
+        followIndex = find(cent_dists == min(cent_dists));
+        
     end
+    cent_hist(frameIndex,:) = centroids(followIndex, :);
+    im_cell = (labeled == followIndex);
     
-    
+    [numPeaks, ~] = skelmetric(im_cell, 0.05);
+    peak_hist(frameIndex,1) = numPeaks;
+    [numPeaks, ~] = shapemetric(im_cell);
+    peak_hist(frameIndex,2) = numPeaks;
     
     
     %Plot images
@@ -261,6 +264,9 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
             plot(centroids(:,1), centroids(:,2), 'rx');
             plot(cent_hist(:,1), cent_hist(:,2), 'b--');
             hold off;
+            text(centroids(followIndex,1)+10, centroids(followIndex,2), ...
+                [num2str(numPeaks) ' arms. '],...
+                'Color', 'g');
         end
         
     end
@@ -277,9 +283,16 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     end
     
 end
+
+figure(2);
+x = 1:size(peak_hist,1);
+y1 = peak_hist(:,1);
+y2 = peak_hist(:,2);
+plot(x, y1, 'b--x', x, y2, 'r--+');
+legend('skelmetric', 'shapemetric');
+title('comparison of both methods');
+
 1;
-
-
 end
 
 

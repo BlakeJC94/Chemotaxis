@@ -1,5 +1,5 @@
 %load test image
-im = im2bw(imread('test.png'));
+im = im2bw(imread('test1.png'));
 
 %show binary image
 figure(1);
