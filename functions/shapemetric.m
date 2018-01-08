@@ -1,4 +1,4 @@
-function [numPeaks, im_sd] = shapemetric(im)
+function [numPeaks, im_sd] = shapemetric(im, peakThreshold)
 % Performs shapedist transform on binary image of single region and
 % identifies number of arms a simply connected irregular polygon has.
 %
@@ -36,7 +36,6 @@ y = [y(tmp:end); y(1:tmp-1)];
 % plot(x, y); 
 
 %find and reject peaks with low prominence
-peakThreshold = 0.15;
 [~,~,~,p] = findpeaks(y,x);
 p = p(p > peakThreshold);
 numPeaks = length(p);
