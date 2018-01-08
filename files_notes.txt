@@ -12,11 +12,11 @@
     - requires imcomplement before histeq
     - bottom left is useless, but many motile cells
     - noisy, cells appear to have "holes"
-    FILENAME = 'DictyElectrotaxis_171108_001.tif';
-    CHANNEL = [1 3];
-    FRAME_RANGE = [-1 Inf]; 
-    FRAME_JUMP = 1;
-    ROI = [160, 340, 700, 640];
+FILENAME = 'DictyElectrotaxis_171108_001.tif';
+CHANNEL = [1 3];
+FRAME_RANGE = [-1 Inf]; 
+FRAME_JUMP = 1;
+ROI = [160, 340, 700, 640];
 
 08:11(04).tif    -> DictyElectrotaxis_171108_002.tif
     - !! Many suitable candidates, 
@@ -39,12 +39,27 @@
     - !! Good candidates here
     - 3 Motile cells, center, right, and bottom right
         - Bottom right exits frame, but good candidate nonetheless
+FILENAME = 'DictyElectrotaxis_171116_001.tif';
+CHANNEL = [3 3];
+FRAME_RANGE = [-1 Inf]; 
+FRAME_JUMP = 1;
+ROI = [730, 660, 1270, 960];
+
+FILENAME = 'DictyElectrotaxis_171116_001.tif';
+CHANNEL = [3 3];
+FRAME_RANGE = [-1 Inf]; 
+FRAME_JUMP = 1;
+ROI = [330, 260, 870, 560];
 
 16:11(02).tif    -> DictyElectrotaxis_171116_002.tif
     - !! Good candidates here
     - 3 motile cells center left
     - clumps bottom left and top right
     - stationary but 'malleable' cell in top left?
+    
+170, 200 
+100, 500
+use a bigger box and come back to this
 
 16:11(03).tif    -> DictyElectrotaxis_171116_003.tif
     - Useless
