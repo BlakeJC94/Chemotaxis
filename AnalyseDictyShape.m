@@ -517,3 +517,6 @@ end
 % % imshow(I2,'InitialMagnification','fit');
 
 
+
+
+% IDEA: fill in areas close by centroids with low variance in position??
