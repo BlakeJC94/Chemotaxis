@@ -238,8 +238,10 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     [numPeaks, ~] = skelmetric(im_cell, 0.05);
     peak_hist(frameIndex,1) = numPeaks;
-    [numPeaks2, ~] = shapemetric(im_cell);
+    [numPeaks2, ~] = shapemetric(im_cell, 0.2);
     peak_hist(frameIndex,2) = numPeaks2;
+    
+    
     
     
     %Plot images
