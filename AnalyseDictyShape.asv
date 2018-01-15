@@ -1,4 +1,4 @@
-function AnalyseDictyShape3
+function AnalyseDictyShape
 % Function for analysing the images from Dicty data
 % Based on code from David M. Richards - 14/08/2017
 % Blake Cook - 6/12/2017
@@ -15,13 +15,14 @@ warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning');
 clf;
 set(gcf, 'Position', get(0,'Screensize'));
 
-makeMovie = 1;
-clipNum = 2;
 
-% *** File "DictyElectrotaxis_171116_001" - 953Mb - 271 frames - 3 channels - 1280x960
+clipNum = 1;
+makeMovie = 0;
+
+
 DIR = 'data/'; %B: Directory changed to work on my laptop
-[FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = clip_input(clipNum);
-
+[FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = load_clip(clipNum);
+[histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold] = load_params(clipNum);
 
 
 
@@ -90,16 +91,17 @@ for i = 1:num_frames
 end
 tif_obj.close();
 
+
 %% Analyse Images
 
 if makeMovie == 1
     append = 0;
-    movieName = ['Clip_' num2str(clipNum,'%02.f') FILENAME(1:end-4) ...
+    movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
         '_overlay_' num2str(append,'%03.f') '.avi'];
     
     while exist(['videos/' movieName], 'file') ~= 0 
         append = append+1;
-        movieName = ['Clip_' num2str(clipNum,'%02.f') FILENAME(1:end-4) ...
+        movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
         '_overlay_' num2str(append,'%03.f') '.avi'];
     end
     
@@ -108,10 +110,7 @@ if makeMovie == 1
     open(v); %open obj
 end
 
-histeqThreshold = 250; %extract pixels with value > threshold (max 255)
-smallnoiseThreshold = 75; %fills in holes with size less than the threshold
-dilationFactor = 2; %replace all pixels with circles of radius 
-largenoiseThreshold = 500; %removes larger shapes cased by dilating noise
+
 
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
@@ -134,15 +133,14 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     % % Remove noise
     I3 = bwareaopen(I3, smallnoiseThreshold);
     % % Dilate image
-    dilationFactor = 2; 
     SE = strel('disk',dilationFactor);
     I3 = imdilate(I3, SE);
     I3 = bwareaopen(I3, largenoiseThreshold); 
     I3 = imfill(I3,'holes'); 
     %Smoothen
-%     seD = strel('diamond',1);
-%     I3 = imerode(I3, seD);
-%     I3 = imerode(I3, seD);
+    seD = strel('diamond',1);
+    I3 = imerode(I3, seD);
+    I3 = imerode(I3, seD);
     cellOutline = bwperim(I3);
     cellSkeleton = bwperim(bwmorph(I3,'thin',Inf));
     
@@ -172,7 +170,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     if frameNum == FRAME_RANGE(1)
         cent_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
         peak_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
-        followIndex = 1; %HARDCODE follow initial specified centroid
+%         followIndex = 1; %HARDCODE follow initial specified centroid
         
     else
         cent_dists = sqrt(sum((centroids - cent_hist(frameIndex-1,:)).^2, 2));
@@ -182,7 +180,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     cent_hist(frameIndex,:) = centroids(followIndex, :);
     im_cell = (labeled == followIndex);
     
-    [numPeaks, ~] = skelmetric(im_cell, 0.05);
+    [numPeaks, ~] = skelmetric(im_cell, metricThreshold);
     peak_hist(frameIndex,1) = numPeaks;
 %     [numPeaks, ~] = shapemetric(im_cell, 0.2);
 %     peak_hist(frameIndex,2) = numPeaks2;

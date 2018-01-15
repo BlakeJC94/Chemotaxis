@@ -91,6 +91,7 @@ for i = 1:num_frames
 end
 tif_obj.close();
 
+
 %% Analyse Images
 
 if makeMovie == 1
@@ -116,10 +117,14 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     frame_input = im(:,:,frameNum);
 
     
-    % 1: Read image and normalise contrast
+    % 1: Read image, remove non-uniform bg with morphopen and adjust contrast
     I1_orig = frame_input;
     I1 = I1_orig;
-    I1 = histeq(I1_orig);
+    
+    background = imopen(I1, strel('disk',15));
+    I1 = I1 - background;
+    
+    I1 = imadjust(I1);
     
     
     % 2: Extract brightest pixels
@@ -226,7 +231,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         writeVideo(v,frame); %write frame to file
     end
     
-    stepFrames = 0;
+    stepFrames = 1;
 %     if (frameNum > 269) 
 %         stepFrames = 1;
 %         disp(['Pause on frame ' num2str(frameNum)]);

@@ -8,11 +8,11 @@ function [histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThresho
 
 if clipNum == 1
     %Orignal test clip
-    histeqThreshold = 250;
-    smallnoiseThreshold = 85; 
-    dilationFactor = 5; 
+    histeqThreshold = 180;
+    smallnoiseThreshold = 20; 
+    dilationFactor = 4; 
     largenoiseThreshold = 900; 
-    followIndex = 1; 
+    followIndex = 2; 
     metricThreshold = 0.05;
     
 elseif clipNum == 2
