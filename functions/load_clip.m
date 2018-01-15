@@ -12,9 +12,13 @@ if clipNum == 1
 elseif clipNum == 2
     FILENAME = 'DictyElectrotaxis_171116_002.tif';
     CHANNEL = [3 3];
-    FRAME_RANGE = [-1 Inf];
+    FRAME_RANGE = [120 Inf];
     FRAME_JUMP = 1;
     ROI = [170, 200, 710, 500];
+        
+elseif clipNum == 3
+    
+    
     
 else
     error(['No clip corresponding to ' num2str(clipNum)]);

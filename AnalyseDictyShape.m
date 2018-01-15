@@ -16,13 +16,14 @@ clf;
 set(gcf, 'Position', get(0,'Screensize'));
 
 
-clipNum = 1;
+clipNum = 2;
 makeMovie = 0;
+frameRate = 10;
 
 
 DIR = 'data/'; %B: Directory changed to work on my laptop
 [FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = load_clip(clipNum);
-[histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold] = load_params(clipNum);
+[histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold, seperationThreshold] = load_params(clipNum);
 
 
 
@@ -106,11 +107,12 @@ if makeMovie == 1
     end
     
     v = VideoWriter(['videos/' movieName]); %create writer object
-    v.FrameRate = 10;
+    v.FrameRate = frameRate;
     open(v); %open obj
 end
 
 
+watershedFlag = 0;
 
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
@@ -144,15 +146,19 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     I3 = imerode(I3, seD);
     I3 = imerode(I3, seD);
     
-    % % Identify foreground
-    I3_fg = (I1>240); 
-    I3_fg = bwareaopen(I3_fg, 200);
-    I3_fg = imfill(I3_fg,'holes'); 
-    % % Compute Watershed ridge lines and remove from I3 to seperate cells
-    I3_D = bwdist(I3_fg);
-    I3_DL = watershed(I3_D);
-    I3_bgm = (I3_DL == 0);
-    I3(I3_bgm == 1) = 0;
+    if watershedFlag == 1
+        % % Identify foreground
+        I3_fg = (I1>seperationThreshold); 
+        I3_fg = bwareaopen(I3_fg, 200);
+        I3_fg = imfill(I3_fg,'holes'); 
+        % % Compute Watershed ridge lines and remove from I3 to seperate cells
+        I3_D = bwdist(I3_fg);
+        I3_DL = watershed(I3_D);
+        I3_bgm = (I3_DL == 0);
+        I3(I3_bgm == 1) = 0;
+    end
+    %Maybe watershed should only be active when two centroids are within
+    %range of overlapping?
     
     % % Remove large outliers
     I3 = bwareaopen(I3, largenoiseThreshold); 
@@ -193,6 +199,15 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     else
         cent_dists = sqrt(sum((centroids - cent_hist(frameIndex-1,:)).^2, 2));
         followIndex = find(cent_dists == min(cent_dists));
+        if numel(cent_dists) > 1
+            tmp = unique(cent_dists(:));
+            next_cent_dist = tmp(2);
+            if next_cent_dist < 80
+                watershedFlag = 1;
+            else
+                watershedFlag = 0;
+            end
+        end
         
     end
     cent_hist(frameIndex,:) = centroids(followIndex, :);

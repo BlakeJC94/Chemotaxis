@@ -1,4 +1,4 @@
-function [histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold] = load_params(clipNum)
+function [histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold, seperationThreshold] = load_params(clipNum)
 %Stores arguemnts for AnalyseDictyShape, indexed by positive integers
 %    histeqThreshold: extract pixels with value > threshold (max 255)
 %    smallnoiseThreshold: fills in holes with size less than the threshold
@@ -14,14 +14,25 @@ if clipNum == 1
     largenoiseThreshold = 500; 
     followIndex = 2; 
     metricThreshold = 0.05;
+    seperationThreshold = 240;
     
 elseif clipNum == 2
-    histeqThreshold = 250;
-    smallnoiseThreshold = 85; 
-    dilationFactor = 5; 
-    largenoiseThreshold = 900; 
+    histeqThreshold = 180;
+    smallnoiseThreshold = 20; 
+    dilationFactor = 4; 
+    largenoiseThreshold = 500; 
     followIndex = 1; 
     metricThreshold = 0.05;
+    seperationThreshold = 200;
+    
+elseif clipNum == 3
+    histeqThreshold = 180;
+    smallnoiseThreshold = 20; 
+    dilationFactor = 4; 
+    largenoiseThreshold = 500; 
+    followIndex = 2; 
+    metricThreshold = 0.05;
+    seperationThreshold = 240;
     
 else
     error(['No clip corresponding to ' num2str(clipNum)]);
