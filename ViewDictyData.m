@@ -24,10 +24,9 @@ CHANNEL = [3 3];
 FRAME_RANGE = [-1 Inf]; 
 FRAME_JUMP = 1;
 % ROI = [340 500 880 800];
-ROI = [-1 -1 Inf Inf];
-
-REGIONS_TO_IGNORE = [95 5 185 100; 190 1 280 25; 320 1 350 20; 310 140 390 210; 480 225 510 260];
-AREA_LIMITS = [500 10000];
+ROI = [-1 -1 Inf Inf]; %Format: x1 y1 x2 y2
+Rect = [100, 500, 540, 300]; %Format: x1 y1 w h 
+ROC = [Rect(1), Rect(2), Rect(1)+Rect(3), Rect(2)+Rect(4)];
 
 
 %% Read header info
@@ -90,7 +89,8 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     rectangle('Position',[100, 500, 540, 300],...
          'LineWidth',2,'LineStyle','--','EdgeColor','g');
     hold off; 
-     
+    
+    title(['ROC : [' num2str(ROC) ']']);
     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
     drawnow();
     

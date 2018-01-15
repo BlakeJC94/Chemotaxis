@@ -1,5 +1,5 @@
-function [FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = clip_input(clipNum)
-%Stores arguemnts for AnalyseDictyShape, indexed by positive integers
+function [FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = load_clip(clipNum)
+%Stores arguments for AnalyseDictyShape, indexed by positive integers
 
 if clipNum == 1
     %Orignal test clip
