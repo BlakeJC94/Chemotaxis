@@ -24,7 +24,7 @@ ROI = [160, 340, 700, 640];
     - noisy, cells appear to have "holes"
 
 09:11 (a).gif    -> DictyElectrotaxis_171109_001_3.gif
-    - Revisit this later, gif files hae to be worked around
+    - Useless
 09:11 (c).tif    -> DictyElectrotaxis_171109_001_1.tif
     - Useless
 09:11 (exp).tif  -> DictyElectrotaxis_171109_001_2.tif
@@ -57,8 +57,8 @@ ROI = [330, 260, 870, 560];
     - clumps bottom left and top right
     - stationary but 'malleable' cell in top left?
     
-170, 200 
-100, 500
+170, 200, 710, 500
+100, 500, 640, 800
 use a bigger box and come back to this
 
 16:11(03).tif    -> DictyElectrotaxis_171116_003.tif

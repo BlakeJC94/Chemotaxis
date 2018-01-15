@@ -1,4 +1,4 @@
-function AnalyseDictyShape
+function AnalyseDictyShapeMovie
 % Function for analysing the images from Dicty data
 % Based on code from David M. Richards - 14/08/2017
 % Blake Cook - 6/12/2017
@@ -32,12 +32,12 @@ AREA_LIMITS = [500 10000];
 %  - PLOT_NUM_COLS_LIST, PLOT_NUM_ROWS_LIST - number of rows/rows for subplot
 %  - IMAGE_NAMES - names for images
 
-PLOT_NUMS = 1:4;
+PLOT_NUMS = 1:2;
 PLOT_MARGIN_X = 0.003;
 PLOT_MARGIN_Y = 0;
 PLOT_NUM_ROWS_LIST = [ 1 1 2 2 2 2 3 3 ];
 PLOT_NUM_COLS_LIST = [ 1 2 2 2 3 3 3 3 ];
-IMAGE_NAMES = {'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7'};
+IMAGE_NAMES = {'Original', 'Overlay', 'I3', 'I4', 'I5', 'I6', 'I7'};
 
 
 %% Read header info
@@ -102,6 +102,10 @@ tif_obj.close();
 %% Analyse Images
 
 %https://au.mathworks.com/help/images/examples/detecting-a-cell-using-image-segmentation.html
+
+v = VideoWriter(['videos/Movie_' FILENAME(1:end-4) '.avi']); %create writer object
+v.FrameRate = 12;
+open(v); %open obj
 
 
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
@@ -238,12 +242,11 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     [numPeaks, ~] = skelmetric(im_cell, 0.05);
     peak_hist(frameIndex,1) = numPeaks;
-    [numPeaks2, ~] = shapemetric(im_cell, 0.2);
-    peak_hist(frameIndex,2) = numPeaks2;
+%     [numPeaks2, ~] = shapemetric(im_cell, 0.2);
+%     peak_hist(frameIndex,2) = numPeaks2;
     
-    
-    
-    
+    Im1 = I1_orig;
+    Im2 = I4;
     %Plot images
     plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
     plot_num_cols = PLOT_NUM_COLS_LIST(num_plots);
@@ -258,7 +261,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
         pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
         subplot('Position', pos);
-        eval(['imshow(I' num2str(im_num) ',''InitialMagnification'', ''fit'');']);
+        eval(['imshow(Im' num2str(im_num) ',''InitialMagnification'', ''fit'');']);
         title(IMAGE_NAMES(im_num), 'FontSize',16);
         
         if im_num == PLOT_NUMS(end)
@@ -267,38 +270,57 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
             plot(cent_hist(:,1), cent_hist(:,2), 'b--');
             hold off;
             text(10, 10, ...
-                ['skelmetric : ' num2str(numPeaks) ' arms. '],...
+                ['No. of arms : ' num2str(numPeaks)],...
                 'Color', 'b');
-            text(10, 20, ...
-                ['shapemetric : ' num2str(numPeaks2) ' arms. '],...
-                'Color', 'r');
+%             text(10, 20, ...
+%                 ['shapemetric : ' num2str(numPeaks2) ' arms. '],...
+%                 'Color', 'r');
         end
         
     end
+
+%     subplot(1,2,1);
+%     imshow(I1_orig,[],'InitialMagnification', 'fit');
+%     
+%     subplot(1,2,2);
+%     imshow(I4,[],'InitialMagnification', 'fit');
+%     hold on;
+%     plot(centroids(:,1), centroids(:,2), 'rx');
+%     plot(cent_hist(:,1), cent_hist(:,2), 'b--');
+%     hold off;
+%     text(10, 10, ...
+%         ['skelmetric : ' num2str(numPeaks) ' arms. '],...
+%         'Color', 'b');
+    
     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
     drawnow();
     
-    stepFrames = 0;
-    if abs(numPeaks - numPeaks2) > 0
-        stepFrames = 1;
-    end
+    frame = getframe(gcf); %save current figure as frame
+    writeVideo(v,frame); %write frame to file
+    
+%     stepFrames = 0;
+%     if abs(numPeaks - numPeaks2) > 0
+%         stepFrames = 1;
+%     end
 %     if (frameNum > 269) 
 %         stepFrames = 1;
 %         disp(['Pause on frame ' num2str(frameNum)]);
 %     end
-    if stepFrames == 1
-         stepFrames = 0;
-    end
+%     if stepFrames == 1
+%          stepFrames = 0;
+%     end
     
 end
 
-figure(2);
-x = 1:size(peak_hist,1);
-y1 = peak_hist(:,1);
-y2 = peak_hist(:,2);
-plot(x, y1, 'b--x', x, y2, 'r--+');
-legend('skelmetric', 'shapemetric');
-title('comparison of both methods');
+close(v); %close obj
+
+% figure(2);
+% x = 1:size(peak_hist,1);
+% y1 = peak_hist(:,1);
+% y2 = peak_hist(:,2);
+% plot(x, y1, 'b--x', x, y2, 'r--+');
+% legend('skelmetric', 'shapemetric');
+% title('comparison of both methods');
 
 1;
 end

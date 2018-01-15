@@ -18,7 +18,7 @@ set(gcf, 'Position', get(0,'Screensize'));
 % *** File "DictyElectrotaxis_171116_001" - 953Mb - 271 frames - 3 channels - 1280x960
 DIR = 'data/'; %B: Directory changed to work on my laptop
 % FILENAME = 'DictyElectrotaxis_171116_001.tif';
-FILENAME = 'DictyElectrotaxis_171116_002.tif';
+FILENAME = 'DictyElectrotaxis_171108_001.tif';
 CHANNEL = [3 3];
 % FRAME_RANGE = [155 271]; 
 FRAME_RANGE = [-1 Inf]; 
