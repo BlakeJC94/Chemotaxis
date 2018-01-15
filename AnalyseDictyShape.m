@@ -139,15 +139,28 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     % % Dilate image
     SE = strel('disk',dilationFactor);
     I3 = imdilate(I3, SE);
-    I3 = bwareaopen(I3, largenoiseThreshold); 
-    I3 = imfill(I3,'holes'); 
-    %Smoothen
+    % % Smoothen
     seD = strel('diamond',1);
     I3 = imerode(I3, seD);
     I3 = imerode(I3, seD);
+    
+    % % Identify foreground
+    I3_fg = (I1>240); 
+    I3_fg = bwareaopen(I3_fg, 200);
+    I3_fg = imfill(I3_fg,'holes'); 
+    % % Compute Watershed ridge lines and remove from I3 to seperate cells
+    I3_D = bwdist(I3_fg);
+    I3_DL = watershed(I3_D);
+    I3_bgm = (I3_DL == 0);
+    I3(I3_bgm == 1) = 0;
+    
+    % % Remove large outliers
+    I3 = bwareaopen(I3, largenoiseThreshold); 
+    I3 = imfill(I3,'holes'); 
+    
+    %Extract outline and skeletons
     cellOutline = bwperim(I3);
     cellSkeleton = bwperim(bwmorph(I3,'thin',Inf));
-    
     
     %Extract centroids
     regions = regionprops(I3);
@@ -159,6 +172,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     cc = bwconncomp(I3);
     labeled = labelmatrix(cc);
     I3 = label2rgb(labeled);
+
     
     
     %Overlay outline on original
@@ -231,7 +245,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         writeVideo(v,frame); %write frame to file
     end
     
-    stepFrames = 1;
+    stepFrames = 0;
 %     if (frameNum > 269) 
 %         stepFrames = 1;
 %         disp(['Pause on frame ' num2str(frameNum)]);

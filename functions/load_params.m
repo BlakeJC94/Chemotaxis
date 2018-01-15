@@ -11,7 +11,7 @@ if clipNum == 1
     histeqThreshold = 180;
     smallnoiseThreshold = 20; 
     dilationFactor = 4; 
-    largenoiseThreshold = 900; 
+    largenoiseThreshold = 500; 
     followIndex = 2; 
     metricThreshold = 0.05;
     

@@ -117,10 +117,14 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     frame_input = im(:,:,frameNum);
 
     
-    % 1: Read image and normalise contrast
+    % 1: Read image, remove non-uniform bg with morphopen and adjust contrast
     I1_orig = frame_input;
     I1 = I1_orig;
-    I1 = histeq(I1_orig);
+    
+    background = imopen(I1, strel('disk',15));
+    I1 = I1 - background;
+    
+    I1 = imadjust(I1);
     
     
     % 2: Extract brightest pixels
@@ -141,9 +145,9 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     seD = strel('diamond',1);
     I3 = imerode(I3, seD);
     I3 = imerode(I3, seD);
+    
     cellOutline = bwperim(I3);
     cellSkeleton = bwperim(bwmorph(I3,'thin',Inf));
-    
     
     %Extract centroids
     regions = regionprops(I3);
@@ -154,11 +158,41 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     %Label connected regions
     cc = bwconncomp(I3);
     labeled = labelmatrix(cc);
-    I3 = label2rgb(labeled);
+%     I3 = label2rgb(labeled);
+    
+    
+    %TEST watershed
+    
+%     se = strel('disk', 4);
+%     I3_e = imerode(I1,se);
+%     I3_obr = imreconstruct(I3_e, I1);
+%     I3_obrd = imdilate(I3_obr, se);
+%     I3_obrcbr = imreconstruct(imcomplement(I3_obrd), imcomplement(I3_obr));
+%     I3_obrcbr = imcomplement(I3_obrcbr);
+%     I3_fgm = imregionalmax(I3_obrcbr); %mor specific threshold??
+    
+%     I3_fg = (I1>250); 
+%     I3_fg = bwareaopen(I3_fg, 200);
+%     I3_fg = imfill(I3_fg,'holes'); 
+    
+    I3_fg = imopen(I1, strel('disk',7));
+    I3_fg = imclose(I3_fg, strel('disk',7));
+    fgm = imregionalmax(I3_fg);
+    1;
+    
+    
+    
+    I3_D = bwdist(I3_fg);
+    I3_DL = watershed(I3_D);
+    I3_bgm = (I3_DL == 0);
+    I3(I3_bgm == 1) = 0;
+    
+
     
     
     %Overlay outline on original
     I4 = I1_orig;
+    I4(I3_bgm == 1) = 255;
     I4(cellOutline) = 255;
     I4(cellSkeleton) = 255;
     
