@@ -17,7 +17,12 @@ elseif clipNum == 2
     ROI = [170, 200, 710, 500];
         
 elseif clipNum == 3
-    
+    %seems to be in negative, will require imcomplement() before analysis
+    FILENAME = 'DictyElectrotaxis_171108_001.tif';
+    CHANNEL = [1 3];
+    FRAME_RANGE = [90 165]; %66 165
+    FRAME_JUMP = 1;
+    ROI = [170  362  710  662];
     
     
 else

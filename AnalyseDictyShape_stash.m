@@ -16,14 +16,15 @@ clf;
 set(gcf, 'Position', get(0,'Screensize'));
 
 
-clipNum = 2;
+clipNum = 3;
 makeMovie = 0;
 frameRate = 10;
 
 
 DIR = 'data/'; %B: Directory changed to work on my laptop
 [FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = load_clip(clipNum);
-[histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold, seperationThreshold] = load_params(clipNum);
+[histThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold, seperationThreshold, seperationFactor] = load_params(clipNum);
+
 
 
 
@@ -100,10 +101,10 @@ if makeMovie == 1
     movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
         '_overlay_' num2str(append,'%03.f') '.avi'];
     
-    while exist(['videos/' movieName], 'file') ~= 0 
+    while exist(['videos/' movieName], 'file') ~= 0
         append = append+1;
         movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
-        '_overlay_' num2str(append,'%03.f') '.avi'];
+            '_overlay_' num2str(append,'%03.f') '.avi'];
     end
     
     v = VideoWriter(['videos/' movieName]); %create writer object
@@ -117,11 +118,15 @@ watershedFlag = 0;
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     frame_input = im(:,:,frameNum);
-
+    
     
     % 1: Read image, remove non-uniform bg with morphopen and adjust contrast
     I1_orig = frame_input;
     I1 = I1_orig;
+    
+    if clipNum == 3
+        I1 = imcomplement(I1);
+    end
     
     background = imopen(I1, strel('disk',15));
     I1 = I1 - background;
@@ -131,7 +136,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     % 2: Extract brightest pixels
     I2 = I1;
-    I2 = (I2>histeqThreshold); 
+    I2 = (I2 > histThreshold);
     
     
     % 3: Additional processing
@@ -139,30 +144,32 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     % % Remove noise
     I3 = bwareaopen(I3, smallnoiseThreshold);
     % % Dilate image
-    SE = strel('disk',dilationFactor);
+    SE = strel('disk', dilationFactor);
     I3 = imdilate(I3, SE);
     % % Smoothen
-    seD = strel('diamond',1);
+    seD = strel('diamond', 1);
     I3 = imerode(I3, seD);
     I3 = imerode(I3, seD);
     
     if watershedFlag == 1
         % % Identify foreground
-        I3_fg = (I1>seperationThreshold); 
-        I3_fg = bwareaopen(I3_fg, 200);
-        I3_fg = imfill(I3_fg,'holes'); 
+        I3_fg = (I1 > seperationThreshold);
+%         I3_fg = imerode(I3_fg, seD);
+%         I3_fg = imerode(I3_fg, seD);
+        I3_fg = bwareaopen(I3_fg, 50);
+        I3_fg = imfill(I3_fg,'holes');
         % % Compute Watershed ridge lines and remove from I3 to seperate cells
         I3_D = bwdist(I3_fg);
         I3_DL = watershed(I3_D);
         I3_bgm = (I3_DL == 0);
+        SE2 = strel('disk',seperationFactor);
+        I3_bgm = imdilate(I3_bgm, SE2);
         I3(I3_bgm == 1) = 0;
     end
-    %Maybe watershed should only be active when two centroids are within
-    %range of overlapping?
     
     % % Remove large outliers
-    I3 = bwareaopen(I3, largenoiseThreshold); 
-    I3 = imfill(I3,'holes'); 
+    I3 = bwareaopen(I3, largenoiseThreshold);
+    I3 = imfill(I3,'holes');
     
     %Extract outline and skeletons
     cellOutline = bwperim(I3);
@@ -178,7 +185,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     cc = bwconncomp(I3);
     labeled = labelmatrix(cc);
     I3 = label2rgb(labeled);
-
+    
     stepFrames = 0;
     if watershedFlag == 1
         I3(I3_bgm == 1) = 0;
@@ -200,7 +207,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     if frameNum == FRAME_RANGE(1)
         cent_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
         peak_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
-%         followIndex = 1; %HARDCODE follow initial specified centroid
+        %         followIndex = 1; %HARDCODE follow initial specified centroid
         
     else
         cent_dists = sqrt(sum((centroids - cent_hist(frameIndex-1,:)).^2, 2));
@@ -208,7 +215,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         if numel(cent_dists) > 1
             tmp = unique(cent_dists(:));
             next_cent_dist = tmp(2);
-            if next_cent_dist < 100
+            if next_cent_dist < 80
                 watershedFlag = 1;
             else
                 watershedFlag = 0;
@@ -221,8 +228,8 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     [numPeaks, ~] = skelmetric(im_cell, metricThreshold);
     peak_hist(frameIndex,1) = numPeaks;
-%     [numPeaks, ~] = shapemetric(im_cell, 0.2);
-%     peak_hist(frameIndex,2) = numPeaks2;
+    %     [numPeaks, ~] = shapemetric(im_cell, 0.2);
+    %     peak_hist(frameIndex,2) = numPeaks2;
     
     
     if makeMovie == 1
@@ -266,11 +273,11 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         writeVideo(v,frame); %write frame to file
     end
     
-    stepFrames = 0;
-%     if (frameNum > 269) 
-%         stepFrames = 1;
-%         disp(['Pause on frame ' num2str(frameNum)]);
-%     end
+    %     stepFrames = 0;
+    %     if (frameNum > 269)
+    %         stepFrames = 1;
+    %         disp(['Pause on frame ' num2str(frameNum)]);
+    %     end
     if stepFrames == 1
         str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
         fprintf(str);
