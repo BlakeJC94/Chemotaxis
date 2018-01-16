@@ -16,14 +16,14 @@ clf;
 set(gcf, 'Position', get(0,'Screensize'));
 
 
-clipNum = 1;
+clipNum = 2;
 makeMovie = 0;
 frameRate = 10;
+stepEvent = 0;
 
 
 DIR = 'data/'; %B: Directory changed to work on my laptop
-[FILENAME, CHANNEL, FRAME_JUMP,FRAME_RANGE, ROI] = load_clip(clipNum);
-[histeqThreshold, smallnoiseThreshold, dilationFactor,largenoiseThreshold, followIndex, metricThreshold, seperationThreshold] = load_params(clipNum);
+load_clip_and_pars;
 
 
 
@@ -127,32 +127,35 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     I1 = imadjust(I1);
     
     
-    % 2: Get cell outline by threshold method
+    % 2: Get cell outline by threshold method and imclose
     I2 = im2bw(I1, graythresh(I1));
     I2 = imfill(I2,'holes');
-    I2 = imopen(I2, ones(3,3));
-    I2 = bwareaopen(I2, 200);
+    I2 = imclose(I2, ones(3)); %dilate then erode
+    I2 = bwareaopen(I2, noiseThr); %remove false positives
     SE = strel('disk',3);
-    I2 = imdilate(I2, SE);
+    I2 = imdilate(I2, SE); %dilate to enclose cells
     
     
-    % 3: Find internal markers and compute watershed
-    I3 = I2;
-    mask_em = imextendedmax(I1, 1);
-    mask_em = bwareaopen(mask_em, 150);
-    mask_em = imclose(mask_em, ones(3,3));
+    % 3: Seperate using internal markers watershed transform
+    mask_em = imextendedmax(I1, 1); %find local maxima (excl. small max below)
+    mask_em = bwareaopen(mask_em, noiseThr); %remove false positives and noise
+    mask_em = imclose(mask_em, ones(4)); %dilate then erode
     mask_em = imfill(mask_em, 'holes');
     
     I_eq_c = imcomplement(I1);
-    I_mod = imimposemin(I_eq_c, ~I2 | mask_em);
+    I_mod = imimposemin(I_eq_c, ~I2 | mask_em); %bg and interiors forced to be min
     L = watershed(I_mod);
-    I3 = (L>1);
-    I3 = bwareaopen(I3, 100);
+    I3 = (L>1); %remove background and outlines
+    I3 = bwareaopen(I3, noiseThr); %remove small noise
+    cc = bwconncomp(I3);
+    labeled = labelmatrix(cc);
     
-    
-    %Extract outline and skeletons
+    % 4: Overlay outline on original
     cellOutline = bwperim(I3);
     cellSkeleton = bwperim(bwmorph(I3,'thin',Inf));
+    I4 = imoverlay(I1_orig, cellOutline | cellSkeleton, [.3 1 .3]);
+    
+    
     
     %Extract centroids
     regions = regionprops(I3);
@@ -160,23 +163,11 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     cent_cell = regions_cell(2,:);
     centroids = cell2mat(cent_cell');
     
-    %Label connected regions
-    cc = bwconncomp(I3);
-    labeled = labelmatrix(cc);
+    %debug: Label connected regions from watershed
+%     cc = bwconncomp(I3);
+%     labeled = labelmatrix(cc);
     I3 = label2rgb(L);
-
-%     stepFrames = 0;
-%     if watershedFlag == 1
-%         I3(I3_bgm == 1) = 0;
-%         I3(mask_em == 1) = 255;
-% %         stepFrames = 1;
-%     end
-%     
-    
-    %Overlay outline on original
-    I4 = I1_orig;
-    I4(cellOutline) = 255;
-    I4(cellSkeleton) = 255;
+ 
     
     
     % ------------
@@ -194,11 +185,6 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         if numel(cent_dists) > 1
             tmp = unique(cent_dists(:));
             next_cent_dist = tmp(2);
-            if next_cent_dist < 80
-                watershedFlag = 1;
-            else
-                watershedFlag = 0;
-            end
         end
         
     end
@@ -207,9 +193,6 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     [numPeaks, ~] = skelmetric(im_cell, metricThreshold);
     peak_hist(frameIndex,1) = numPeaks;
-%     [numPeaks, ~] = shapemetric(im_cell, 0.2);
-%     peak_hist(frameIndex,2) = numPeaks2;
-    
     
     if makeMovie == 1
         I1 = I1_orig;
@@ -253,9 +236,9 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     end
     
     stepFrames = 0;
-%     if (watershedFlag == 1)
-%         stepFrames = 1;
-%     end
+    if (stepEvent == 1) && (frameNum == 200)
+            stepFrames = 1;
+    end
     if stepFrames == 1
         str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
         fprintf(str);
