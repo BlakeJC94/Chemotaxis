@@ -10,9 +10,9 @@ if clipNum == 1
     %Orignal test clip
     histeqThreshold = 180;
     smallnoiseThreshold = 20; 
-    dilationFactor = 4; 
+    dilationFactor = 5;%4 
     largenoiseThreshold = 500; 
-    followIndex = 2; 
+    followIndex = 3;  %2
     metricThreshold = 0.05;
     seperationThreshold = 240;
     

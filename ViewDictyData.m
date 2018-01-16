@@ -83,7 +83,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     I1 = im(:,:,frameNum);
 %     I1 = histeq(imcomplement(I1));
-    I1 = histeq(I1);
+%     I1 = histeq(I1);
     imshow(I1,'InitialMagnification', 'fit');
     hold on;
     rectangle('Position',[100, 500, 540, 300],...

@@ -16,7 +16,7 @@ clf;
 set(gcf, 'Position', get(0,'Screensize'));
 
 
-clipNum = 1;
+clipNum = 2;
 makeMovie = 0;
 frameRate = 10;
 
@@ -122,33 +122,47 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     % 1: Read image, remove non-uniform bg with morphopen and adjust contrast
     I1_orig = frame_input;
     I1 = I1_orig;
+    
     background = imopen(I1, strel('disk',15));
     I1 = I1 - background;
+    
     I1 = imadjust(I1);
     
     
-    % 2: Get cell outline by threshold method
-    I2 = im2bw(I1, graythresh(I1));
-    I2 = imfill(I2,'holes');
-    I2 = imopen(I2, ones(3,3));
-    I2 = bwareaopen(I2, 200);
-    SE = strel('disk',3);
-    I2 = imdilate(I2, SE);
+    % 2: Extract brightest pixels
+    I2 = I1;
+    I2 = (I2>histeqThreshold); 
     
     
-    % 3: Find internal markers and compute watershed
+    % 3: Additional processing
     I3 = I2;
-    mask_em = imextendedmax(I1, 1);
-    mask_em = bwareaopen(mask_em, 150);
-    mask_em = imclose(mask_em, ones(3,3));
-    mask_em = imfill(mask_em, 'holes');
+    % % Remove noise
+    I3 = bwareaopen(I3, smallnoiseThreshold);
+    % % Dilate image
+    SE = strel('disk',dilationFactor);
+    I3 = imdilate(I3, SE);
+    % % Smoothen
+    seD = strel('diamond',1);
+    I3 = imerode(I3, seD);
+    I3 = imerode(I3, seD);
     
-    I_eq_c = imcomplement(I1);
-    I_mod = imimposemin(I_eq_c, ~I2 | mask_em);
-    L = watershed(I_mod);
-    I3 = (L>1);
-    I3 = bwareaopen(I3, 100);
+    if watershedFlag == 1
+        % % Identify foreground
+        I3_fg = (I1>seperationThreshold); 
+        I3_fg = bwareaopen(I3_fg, 200);
+        I3_fg = imfill(I3_fg,'holes'); 
+        % % Compute Watershed ridge lines and remove from I3 to seperate cells
+        I3_D = bwdist(I3_fg);
+        I3_DL = watershed(I3_D);
+        I3_bgm = (I3_DL == 0);
+        I3(I3_bgm == 1) = 0;
+    end
+    %Maybe watershed should only be active when two centroids are within
+    %range of overlapping?
     
+    % % Remove large outliers
+    I3 = bwareaopen(I3, largenoiseThreshold); 
+    I3 = imfill(I3,'holes'); 
     
     %Extract outline and skeletons
     cellOutline = bwperim(I3);
@@ -163,15 +177,15 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     %Label connected regions
     cc = bwconncomp(I3);
     labeled = labelmatrix(cc);
-    I3 = label2rgb(L);
+    I3 = label2rgb(labeled);
 
-%     stepFrames = 0;
-%     if watershedFlag == 1
-%         I3(I3_bgm == 1) = 0;
-%         I3(mask_em == 1) = 255;
-% %         stepFrames = 1;
-%     end
-%     
+    stepFrames = 0;
+    if watershedFlag == 1
+        I3(I3_bgm == 1) = 0;
+        I3(I3_fg == 1) = 255;
+%         stepFrames = 1;
+    end
+    
     
     %Overlay outline on original
     I4 = I1_orig;
@@ -194,7 +208,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         if numel(cent_dists) > 1
             tmp = unique(cent_dists(:));
             next_cent_dist = tmp(2);
-            if next_cent_dist < 80
+            if next_cent_dist < 100
                 watershedFlag = 1;
             else
                 watershedFlag = 0;
@@ -253,13 +267,12 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     end
     
     stepFrames = 0;
-%     if (watershedFlag == 1)
+%     if (frameNum == 224) 
 %         stepFrames = 1;
 %     end
     if stepFrames == 1
         str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
         fprintf(str);
-%        1;
         pause;
         fprintf(repmat('\b',1,length(str)-1));
         stepFrames = 0;
@@ -276,81 +289,3 @@ end
 
 
 
-
-
-
-
-%     % 2: Extract brightest pixels
-%     I2 = I1;
-%     I2 = (I2>histeqThreshold); 
-%     
-%     
-%     % 3: Additional processing
-%     I3 = I2;
-%     % % Remove noise
-%     I3 = bwareaopen(I3, smallnoiseThreshold);
-%     % % Dilate image
-%     SE = strel('disk',dilationFactor);
-%     I3 = imdilate(I3, SE);
-%     % % Smoothen
-%     seD = strel('diamond',1);
-%     I3 = imerode(I3, seD);
-%     I3 = imerode(I3, seD);
-%     
-%     % % Remove large outliers
-%     I3 = bwareaopen(I3, largenoiseThreshold); 
-%     I3 = imfill(I3,'holes'); 
-%     
-%     if watershedFlag == 1
-%         
-% %         % % --- method 1 ---- 
-% %         % Identify foreground
-% %         mask_em = (I1>seperationThreshold); 
-% %         mask_em = bwareaopen(mask_em, 200);
-% %         mask_em = imfill(mask_em,'holes'); 
-% %         % Compute Watershed ridge lines and remove from I3 to seperate cells
-% %         I3_D = bwdist(mask_em);
-% %         I3_DL = watershed(I3_D);
-% %         I3_bgm = (I3_DL == 0);
-% %         I3(I3_bgm == 1) = 0;
-%         
-%         
-%         % % --- method 2 ----
-%         %Find internal markers (brighter spots)
-%         mask_em = imextendedmax(I1, 1); %%
-%         mask_em = bwareaopen(mask_em, 400); %%
-%         mask_em = imclose(mask_em, ones(5,5));
-%         mask_em = imfill(mask_em, 'holes');
-%         
-%         %complement image to make peaks into valleys
-%         I_eq_c = imcomplement(I1);
-%         
-%         %modify image such that bg and maxima are the only local minima
-%         I_mod = imimposemin(I_eq_c, ~I3 | mask_em);
-%         
-%         %compute watershed
-%         L = watershed(I_mod);
-%         I3_bgm = (L == 0);
-%         I3_bgm = imdilate(I3_bgm,strel('disk',2));
-%         I3(I3_bgm == 1) = 0;
-%         
-% %         % % ---- method 3 ----
-% %         % Identify foreground
-% %         mask_em = (I1>254); 
-% %         mask_em = bwareaopen(mask_em, 300);
-% %         mask_em = imfill(mask_em,'holes'); 
-% %         %complement image to make peaks into valleys
-% %         I_eq_c = imcomplement(I1);
-% %         %modify image such that bg and maxima are the only local minima
-% %         I_mod = imimposemin(I_eq_c, ~I3 | mask_em);
-% %         %compute watershed
-% %         L = watershed(I_mod);
-% %         I3_bgm = (L == 0);
-% %         I3(I3_bgm == 1) = 0;
-% %         I3 = bwareaopen(I3, largenoiseThreshold); 
-% %         I3 = imfill(I3,'holes'); 
-%         
-%     end
-%     %Maybe watershed should only be active when two centroids are within
-%     %range of overlapping?
-    
