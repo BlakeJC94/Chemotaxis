@@ -18,7 +18,7 @@ elseif clipNum == 2
     FRAME_JUMP = 1;
     ROI = [170, 200, 710, 500];
     
-    noiseThr = 200; 
+    noiseThr = 10; 
     
     followIndex = 1;  
     metricThreshold = 0.05;
