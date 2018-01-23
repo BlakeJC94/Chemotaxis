@@ -1,4 +1,4 @@
-function AnalyseDictyShape
+function AnalyseDictyShape_old_20170123
 % Function for analysing the images from Dicty data
 % Based on code from David M. Richards - 14/08/2017
 % Blake Cook - 6/12/2017
@@ -20,7 +20,7 @@ clipNum = 1;
 
 makeMovie = 0;
 frameRate = 10;
-stepEvent = 0;
+stepEvent = 1;
 
 
 DIR = 'data/'; %B: Directory changed to work on my laptop
@@ -46,52 +46,7 @@ if makeMovie == 1
     IMAGE_NAMES = {'Original', 'Overlay'};
 end
 
-
-%% Read header info
-
-file_info = imfinfo([DIR FILENAME]);
-im_width = file_info(1).Width;
-im_height = file_info(1).Height;
-num_images = numel(file_info);
-
-if mod(num_images,CHANNEL(2))~=0
-    error(['Total number of frames (' num2str(num_images) ') not multiple of number of channels (' num2str(CHANNEL(2)) ')']);
-end
-num_frames = num_images/CHANNEL(2);
-
-if (FRAME_RANGE(1)==-1); FRAME_RANGE(1)=1; end
-if (FRAME_RANGE(2)==Inf); FRAME_RANGE(2)=num_frames; end
-
-num_frames_range = numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2));
-
-if (ROI(1)==-1); ROI(1)=1; end
-if (ROI(2)==-1); ROI(2)=1; end
-if (ROI(3)==Inf); ROI(3)=im_width; end
-if (ROI(4)==Inf); ROI(4)=im_height; end
-
-ROI_width  = ROI(3) - ROI(1) + 1;
-ROI_height = ROI(4) - ROI(2) + 1;
-
-num_plots = numel(PLOT_NUMS);
-
-
-%% Declare variables:
-%  - im - holds all images
-%  - im_full - holds full frame
-
-im = zeros(ROI_height,ROI_width,num_frames,'uint8');
-
-
-
-%% Read in images
-
-tif_obj = Tiff([DIR FILENAME],'r');
-for i = 1:num_frames
-    tif_obj.setDirectory(CHANNEL(1)+CHANNEL(2)*(i-1));
-    im_full = tif_obj.read();
-    im(:,:,i) = im_full(ROI(2):ROI(4),ROI(1):ROI(3));
-end
-tif_obj.close();
+[im, num_plots, num_frames] = readImages(DIR, FILENAME, CHANNEL, FRAME_RANGE, FRAME_JUMP, ROI, PLOT_NUMS);
 
 
 %% Analyse Images
@@ -101,10 +56,10 @@ if makeMovie == 1
     movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
         '_overlay_' num2str(append,'%03.f') '.avi'];
     
-    while exist(['videos/' movieName], 'file') ~= 0 
+    while exist(['videos/' movieName], 'file') ~= 0
         append = append+1;
         movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
-        '_overlay_' num2str(append,'%03.f') '.avi'];
+            '_overlay_' num2str(append,'%03.f') '.avi'];
     end
     
     v = VideoWriter(['videos/' movieName]); %create writer object
@@ -113,12 +68,10 @@ if makeMovie == 1
 end
 
 
-watershedFlag = 0;
-
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     frame_input = im(:,:,frameNum);
-
+    
     
     % 1: Read image, remove non-uniform bg with morphopen and adjust contrast
     I1_orig = frame_input;
@@ -173,13 +126,13 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     if frameNum == FRAME_RANGE(1)
         
-      id = [(1:size(centroids,1)); (1:size(centroids,1))];
+        id = [(1:size(centroids,1)); (1:size(centroids,1))];
         cent_hist = cell(1,size(id,2));
         for j = 1:size(id,2)
             cent_hist{id(1,j)} = [1, centroids(id(2,j),:)];
         end
     else
-
+        
         %generate new assignments
         cost = zeros(size(centroids_old,1), size(centroids,1));
         for j = 1:size(centroids_old,1)
@@ -195,7 +148,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         if ~isempty(unassignedTracks)
             ind = ismember(id(2,:), unassignedTracks(:));
             id_new(2,ind) = -1;
-        	disp(['unassignedTracks, frameNum = ' num2str(frameNum)])
+            disp(['unassignedTracks, frameNum = ' num2str(frameNum)])
         end
         
         %update RIs (assignment: col 1 tracks, col 2 detections)
@@ -219,12 +172,12 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     end
     
     centroids_old = centroids;
-        
+    
     %debug: Label connected regions from watershed
     cc = bwconncomp(I3);
     labeled = labelmatrix(cc);
     I3 = label2rgb(labeled);
- 
+    
     
     
     % ------------
@@ -234,7 +187,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     if frameNum == FRAME_RANGE(1)
         cent_hist_old = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
         peak_hist = NaN * zeros(length(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)), 2);
-%         followIndex = 1; %HARDCODE follow initial specified centroid
+        % followIndex = 1; %HARDCODE follow initial specified centroid
         ind = (id(2,:)~=-1);
         active_id = id(:,ind);
     else
@@ -288,16 +241,16 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
             x3 = cent_hist{3}(:,2);
             y3 = cent_hist{3}(:,3);
             plot(x3,y3,'b--');
-%             plot(cent_hist(:,1), cent_hist(:,2), 'b--');
+            %             plot(cent_hist(:,1), cent_hist(:,2), 'b--');
             hold off;
             text(10, 10, ...
                 ['No. of arms : ' num2str(numPeaks)],...
                 'Color', 'b');
             
             for j = 1:size(active_id,2)
-            text(centroids(active_id(2,j),1)-10,...
-                centroids(active_id(2,j),2)-35, ...
-                num2str(active_id(1,j)), 'FontSize', 18);
+                text(centroids(active_id(2,j),1)-10,...
+                    centroids(active_id(2,j),2)-35, ...
+                    num2str(active_id(1,j)), 'FontSize', 18);
             end
             
         end
@@ -313,13 +266,12 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     end
     
     stepFrames = 0;
-    if (stepEvent == 1) && (frameNum == 200)
-            stepFrames = 1;
+    if (stepEvent == 1) && (frameNum > FRAME_RANGE(1))
+        if ~isempty(unassignedTracks), stepFrames = 1; end        
     end
     if stepFrames == 1
         str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
         fprintf(str);
-%        1;
         pause;
         fprintf(repmat('\b',1,length(str)-1));
         stepFrames = 0;
@@ -335,6 +287,51 @@ end
 
 end
 
+
+function [im, num_plots, num_frames] = readImages(DIR, FILENAME, CHANNEL, FRAME_RANGE, FRAME_JUMP, ROI, PLOT_NUMS)
+%% Read header info
+file_info = imfinfo([DIR FILENAME]);
+im_width = file_info(1).Width;
+im_height = file_info(1).Height;
+num_images = numel(file_info);
+
+if mod(num_images,CHANNEL(2))~=0
+    error(['Total number of frames (' num2str(num_images) ') not multiple of number of channels (' num2str(CHANNEL(2)) ')']);
+end
+num_frames = num_images/CHANNEL(2);
+
+if (FRAME_RANGE(1)==-1); FRAME_RANGE(1)=1; end
+if (FRAME_RANGE(2)==Inf); FRAME_RANGE(2)=num_frames; end
+
+num_frames_range = numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2));
+
+if (ROI(1)==-1); ROI(1)=1; end
+if (ROI(2)==-1); ROI(2)=1; end
+if (ROI(3)==Inf); ROI(3)=im_width; end
+if (ROI(4)==Inf); ROI(4)=im_height; end
+
+ROI_width  = ROI(3) - ROI(1) + 1;
+ROI_height = ROI(4) - ROI(2) + 1;
+
+num_plots = numel(PLOT_NUMS);
+
+
+%% Declare variables:
+%  - im - holds all images
+im = zeros(ROI_height,ROI_width,num_frames,'uint8');
+
+
+%% Read in images
+tif_obj = Tiff([DIR FILENAME],'r');
+for i = 1:num_frames
+    tif_obj.setDirectory(CHANNEL(1)+CHANNEL(2)*(i-1));
+    im_full = tif_obj.read();
+    im(:,:,i) = im_full(ROI(2):ROI(4),ROI(1):ROI(3));
+end
+tif_obj.close();
+
+
+end
 
 
 

@@ -1,3 +1,10 @@
+%Analysis parameters:
+%  - CHANNEL - use channel number CHANNEL(1) out of total of CHANNEL(2) channels
+%  - FRAME_RANGE - which frames to analysis; [-1 Inf] => all frames
+%  - ROI - region of interest as [x1 y1 x2 y2]; [-1 -1 Inf Inf] => full image
+%  - REGIONS_TO_IGNORE - regions to remove from final image as [x1 y1 x2 y2]
+%  - noiseThr: 
+
 if clipNum == 1
     %Orignal test clip
     FILENAME = 'DictyElectrotaxis_171116_001.tif';
@@ -5,8 +12,8 @@ if clipNum == 1
     FRAME_JUMP = 1;
     FRAME_RANGE = [155 271]; 
     ROI = [340 500 880 800];
-    
-    noiseThr = 200; 
+
+    noiseThr = 100; %200
     
     followIndex = 3;  
     metricThreshold = 0.05;
