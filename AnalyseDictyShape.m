@@ -281,11 +281,13 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         
         if im_num == 4
             hold on;
+            
             plot(centroids(:,1), centroids(:,2), 'rx');
-            x3 = cent_hist{3}(:,2);
-            y3 = cent_hist{3}(:,3);
-            plot(x3,y3,'b--');
-            %             plot(cent_hist(:,1), cent_hist(:,2), 'b--');
+            
+            xn = cent_hist{3}(:,2);
+            yn = cent_hist{3}(:,3);
+            plot(xn,yn,'b--');
+
             hold off;
             text(10, 10, ...
                 ['No. of arms : ' num2str(numPeaks)],...

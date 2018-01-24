@@ -10,11 +10,11 @@ function AnalyseDictyShape_new
 %      avi with specified |frameRate| (0) show full output of analysis and 
 %      don't export avi
 %  - stepEvent: [DEBUG] (1) pause analysis for some condition specified in
-%      string |cond| (0) don't pause analysis until finished
+%      string |stepCond| (0) don't pause analysis until finished
 % Load clip using script |load_clip_and_pars|
 
 addpath('functions/') % add dir for functions
-warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); 
+% warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); 
 clf; % clear current figure
 set(gcf, 'Position', get(0,'Screensize')); % set size of figure window
 
@@ -22,7 +22,9 @@ DIR = 'data/'; % specify where data is relative to current folder
 
 makeMovie = 0;
 frameRate = 10;
+
 stepEvent = 0;
+stepCond = 'frameNum == 200';
 
 clipNum = 1;
 
@@ -60,25 +62,19 @@ end
 
 
 %% Load clip and read images
-% Use script to load clip and alansysis parameters stored in 
+% Use script to load clip and analysis parameters stored in 
 % |load_clip_andPars|: add the following variables to the workspace:
 %     FILENAME, CHANNEL, FRAME_JUMP, FRAME_RANGE, ROI, noiseThr, metricThreshold
 %  - im: 3d array that stores all images (rows, columns, frames)
 
-% load_clip_and_pars; %TODO: FIX THIS!!!
-FILENAME = 'DictyElectrotaxis_171116_001.tif';
-CHANNEL = [3 3];
-FRAME_JUMP = 1;
-FRAME_RANGE = [155 271];
-ROI = [340 500 880 800];
+% initialise variables
+FILENAME = []; CHANNEL = []; FRAME_JUMP = []; FRAME_RANGE = []; ROI = [];
+noiseThr = []; followIndex = []; metricThreshold = [];
 
-noiseThr = 100; %200
+% load values
+load_clip_and_pars; 
 
-followIndex = 3;
-metricThreshold = 0.05;
-
-
-
+% read images 
 [im, num_plots, num_frames]  = readImages();
 
 
@@ -107,25 +103,122 @@ end
 
 
 %% Analyse images, get data and plot results
-% to track cells, 
-
+% to track cells, ....
+% Centroids matrix is indexed by a region index assigned by MATLAB. "Update
+% trackers" segment matches these region indicies with the cell ID. 
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     frame_input = im(:,:,frameNum);
     analysisResults = analyseImages(frame_input);
     
     
-    % get region data (centroids, area)
-     %%%%%
+    % get region data (area, centroid) 
+    regions = regionprops(analysisResults.I7, {'Centroid', 'Area'});
+    regions = struct2cell(regions);
     
-    % update trackers
+    areas = cell2mat(regions(1,:)');
+    centroids = cell2mat(regions(2,:)');
+    
+    % get armnum data
+    armnums = skelmetric_mult(analysisResults.I7, metricThreshold);
+    
+    % update ID and trackers
     if frameNum == FRAME_RANGE(1)
         
-        % set up |cell_id|
+        % set up |cell_id|. 1st row = cell ID, 2nd row = region index (RI) 
+        % in current frame.
+        id = [(1:size(centroids,1)); (1:size(centroids,1))];
+        ind = (id(2,:)~=-1);
+        active_id = id(:,ind);
+        
+        % set up centroid tracker: cent_hist{n} returns a matrix of the
+        %   centroid loactions of cell with ID 'n' (columns are frame, x, y)
+        % set up area tracker
+        % set up armnum tracker
+        cent_hist = cell(1,size(id,2));
+        area_hist = cell(1,size(id,2));
+        arm_hist = cell(1,size(id,2));
+        for j = 1:size(id,2)
+            cent_hist{id(1,j)} = [1, centroids(id(2,j),:)];
+            area_hist{id(1,j)} = [1, areas(id(2,j))];
+            arm_hist{id(1,j)} = [1, armnums(id(2,j))];
+        end
+        
+        
         
     else 
         
+        % update region index for each cell ID
+        %  - assignment: nx2 matrix, col 1 = RIs on previous frame, 
+        %     col 2 = corresponding RIs on current frame.
+        %  - unassignedTracks: previous RIs not assigned (exited cells)
+        %  - unassignedDetections: current RIs new (entering cells)
+        cost = zeros(size(centroids_old,1), size(centroids,1));
+        for j = 1:size(centroids_old,1)
+            diff = centroids - repmat(centroids_old(j,:), [size(centroids,1),1]);
+            cost(j,:) = sqrt(sum(diff.^2,2));
+        end
+        [assignment,unassignedTracks,unassignedDetections] = ...
+            assignDetectionsToTracks(cost, 50);
+        
+        % create new id matrix
+        id_update = [id(1,:); zeros(1,length(id(2,:)))];
+        
+        % disable IDs for cells that exit
+        id_update(id == -1) = -1; % for cells that have already exited
+        if ~isempty(unassignedTracks)
+            disp(['unassignedTracks, frameNum = ' num2str(frameNum)])
+            ind = ismember(id(2,:), unassignedTracks(:));
+            id_update(2,ind) = -1;
+        end
+        
+        
+        % update RIs (assignment: col 1 prev, col 2 current)
+        for l = 1:size(assignment,1)
+            ind = ismember(id(2,:),assignment(l,1));
+            id_update(2,ind) = assignment(l,2);
+        end
+        
+        % add IDs for cells that enter
+        if ~isempty(unassignedDetections)
+            disp(['unassignedDetections, frameNum = ' num2str(frameNum)])
+            for k = 1:length(unassignedDetections)
+                
+                %%% check if this cell already has an ID!
+
+                new_id = max(id_update(1,:)) + 1;
+                id_update = [id_update(1,:), new_id; id_update(2,:), double(unassignedDetections(k))];
+                
+                cent_hist{new_id} = zeros(0); 
+                area_hist{new_id} = zeros(0); 
+                arm_hist{new_id} = zeros(0); 
+            end
+        end
+        
+        % update ID matrix 
+        id = id_update;
+        
+        % update trackers
+        ind = (id(2,:)~=-1);
+        active_id = id(:,ind);
+        for j = 1:size(active_id,2)
+            cent_hist{active_id(1,j)} = ...
+                [cent_hist{active_id(1,j)}; frameNum, centroids(active_id(2,j),:)];
+            
+            area_hist{active_id(1,j)} = ...
+                [area_hist{active_id(1,j)}; frameNum, areas(active_id(2,j))];
+            
+            arm_hist{active_id(1,j)} = ...
+                [arm_hist{active_id(1,j)}; frameNum, armnums(active_id(2,j))];
+        end
+        
+        
     end
+    
+    % store centroids for next frame 
+    centroids_old = centroids;
+    
+    
     
     
     %Plot images
@@ -148,50 +241,54 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
             ', ''InitialMagnification'', ''fit'');']);
         title(IMAGE_NAMES(im_num), 'FontSize',16);
         
-%         if im_num == 6
-%             hold on;
-% %             plot(centroids(:,1), centroids(:,2), 'rx');
-% %             x3 = cent_hist{3}(:,2);
-% %             y3 = cent_hist{3}(:,3);
-% %             plot(x3,y3,'b--');
-%             %             plot(cent_hist(:,1), cent_hist(:,2), 'b--');
-%             hold off;
-%             text(10, 10, ...
-%                 ['No. of arms : ' num2str(numPeaks)],...
-%                 'Color', 'b');
-%             
-%             for j = 1:size(active_id,2)
-%                 text(centroids(active_id(2,j),1)-10,...
-%                     centroids(active_id(2,j),2)-35, ...
-%                     num2str(active_id(1,j)), 'FontSize', 18);
-%             end
-%             
-%         end
+        if im_num == 6
+            hold on;
+            plot(centroids(:,1), centroids(:,2), 'rx');
+            xn = cent_hist{followIndex}(:,2);
+            yn = cent_hist{followIndex}(:,3);
+            plot(xn,yn,'b--');
+            hold off;
+            text(10, 10, ...
+                ['No. of arms : ' num2str(arm_hist{3}(end,2))],...
+                'Color', 'b');
+            
+            for j = 1:size(active_id,2)
+                text(centroids(active_id(2,j),1)-10,...
+                    centroids(active_id(2,j),2)-35, ...
+                    num2str(active_id(1,j)), 'FontSize', 18);
+            end
+            
+        end
         
     end
+    % set title of figure and print results to figure now
     set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
     drawnow();
     
     
+    % if makeMovie == 1, export data to file. DEBUG: pause if 
+    % stepEvent == 1 and not making movie
+    if makeMovie == 1
+        frame = getframe(gcf); %save current figure as frame
+        writeVideo(v,frame); %write frame to file
+        
+    elseif (stepEvent == 1) && eval(stepCond)
+        str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
+        fprintf(str);
+        pause; fprintf(repmat('\b',1,length(str)-1));
+        
+    end
+    
+    
 end
 
+% close video writer if opened
+if makeMovie == 1
+    close(v);
+end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
+    
 
 %% SUBFUNCTION 1: readImages()
 % Takes plot options specified in |AnalyseDictyShape| and analysis
@@ -261,6 +358,16 @@ end
 % 
 % Our strategy involves extracting internal markers from the frame and
 % forcing these to be catchement basis. 
+% 
+% 
+% Issues unresolved: sometimes internal mask will randomly fragment,
+% resulting in incorrectly identifying one cell as 2 seperate cells 
+%   - Possible fix: identify corresponding regions between internal mask
+%   and external mask. If one region in external mask has more than one
+%   region in internal mask, check if the area of exeternal mask has change
+%   significantly. If so, overlapping has occurred and internal region
+%   should be kept. Otherwise just take the largest internal marker. 
+
 
     function analysisResults = analyseImages(frame_input)
         
@@ -285,9 +392,9 @@ end
         % fill holes (areas surronded by white pixels)
         ext_fill = imfill(ext_binary, 'holes');
         
-        % morphologially close image (dilate then erode, closes gaps
+        % morphologially opemn image (erode then dilate, opens gaps
         % between some regions) and remove false positives
-        ext_fill_close = imclose(ext_fill, ones(3)); 
+        ext_fill_close = imopen(ext_fill, ones(3)); 
         ext_fill_close = bwareaopen(ext_fill_close, noiseThr); %TODO: define new var for this thr
         
         % dialate regions by disk (r=3 pix) to enclose cells
@@ -305,12 +412,18 @@ end
         
         
         % remove noise
-        int_max_main =  bwareaopen(int_max, noiseThr); 
+        int_max_main =  bwareaopen(int_max, 75); 
         
-        % morphologically close (dialte then erode, close some gaps) then
-        % fill holes
-        int_close = imclose(int_max_main, ones(4));
-        int_mask = imfill(int_close, 'holes');
+        % morphologically close (dialte then erode, close some gaps), fill 
+        % holes then thin results wthout breaking regions 
+        int_close = imclose(int_max_main, ones(3));
+        int_close_fill = imfill(int_close, 'holes');
+        int_thin = bwmorph(int_close_fill, 'Thin', 1);
+        
+        
+        % remove false positives
+        int_mask =  bwareaopen(int_thin, 25); 
+        
         
         I5 = int_mask;
         
@@ -332,7 +445,7 @@ end
         % fragment very small parts of the cell membrane)
         mask = bwareaopen(L, noiseThr);
         
-        I6 = mask;
+        I7 = mask;
         
         
         
@@ -341,7 +454,7 @@ end
         cellSkeleton = bwperim(bwmorph(mask,'thin',Inf));
         overlay = imoverlay(frame_input, cellOutline | cellSkeleton, [.3 1 .3]);
         
-        analysisResults.overlay = overlay;
+        I6 = overlay;
         
         
         
@@ -351,12 +464,30 @@ end
         end
         
         % export I1, I2,... to function output struct
-        for i = PLOT_NUMS
+        for i = 1:7
             eval(['analysisResults.I' num2str(i) ' = I' num2str(i) ';'])
         end
+        
     end
 
+
 end
+
+
+
+function [armnums] = skelmetric_mult(im, peakThreshold)
+% Performs skelmetric transform on binary image of multiple regions. 
+cc = bwconncomp(im);
+labeled = labelmatrix(cc);
+
+armnums = zeros(cc.NumObjects,1);
+for regionIndex = 1:cc.NumObjects
+    im_cell = (labeled == regionIndex); 
+    armnums(regionIndex) = skelmetric(im_cell, peakThreshold);
+end
+
+end
+
 
 
 
