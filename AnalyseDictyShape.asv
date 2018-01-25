@@ -134,7 +134,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         % set up centroid tracker: cent_hist{n} returns a matrix of the
         %   centroid loactions of cell with ID 'n' (columns are frame, x, y)
         % set up area tracker
-        % set up armnum trackercl
+        % set up armnum tracker
         cent_hist = cell(1,size(id,2));
         area_hist = cell(1,size(id,2));
         arm_hist = cell(1,size(id,2));
@@ -373,9 +373,7 @@ end
 % seperated by using the "catchement basins", local minumms on the surface.
 % 
 % Our strategy involves extracting internal markers from the frame and
-% forcing these to be catchement basis. Ueful figures and further
-% explanation of watershed: 
-% https://uk.mathworks.com/company/newsletters/articles/the-watershed-transform-strategies-for-image-segmentation.html
+% forcing these to be catchement basis. 
 % 
 % 
 % Issues unresolved: sometimes internal mask will randomly fragment,
@@ -507,49 +505,45 @@ end
 
 
 
-% function [armnums] = skelmetric_mult_old(im, peakThreshold)
-% % Performs skelmetric transform on binary image of multiple regions. 
-% %THIS IS AN INEFFICIENT WAY OF DOING THINGS
-% cc = bwconncomp(im);
-% labeled = labelmatrix(cc);
-% 
-% armnums = zeros(cc.NumObjects,1);
-% for regionIndex = 1:cc.NumObjects
-%     im_cell = (labeled == regionIndex); 
-%     armnums(regionIndex) = skelmetric(im_cell, peakThreshold);
-% end
-% 
-% end
+function [armnums] = skelmetric_mult(im, peakThreshold)
+% Performs skelmetric transform on binary image of multiple regions. 
+cc = bwconncomp(im);
+labeled = labelmatrix(cc);
+
+armnums = zeros(cc.NumObjects,1);
+for regionIndex = 1:cc.NumObjects
+    im_cell = (labeled == regionIndex); 
+    armnums(regionIndex) = skelmetric(im_cell, peakThreshold);
+end
+
+end
 
 
-function armnums = skelmetric_mult(im, peakThreshold)
-% Performs skelmetric transform on binary image of multiple regions
+function armnums = skelmetric_mult2(im, peakThreshold)
 
-
-
-% find skeletons
+%find skeletons
 im_sm = bwmorph(im,'thin',Inf);
    
     
-% find and dialte branchpoints
+%find and dialte branchpoints
 im_br = bwmorph(im_sm,'branchpoints');
 dilationFactor = 2;
 SE = strel('disk',dilationFactor);
 im_br = imdilate(im_br, SE);
-% remove from skeleton to get all skeletal connections
+%remove from skeleton to get all skeletal connections
 im_skelconn = logical(im_sm .* (1-im_br));
 
     
-% find endpoints of skeleton
+%find endpoints of skeleton
 im_en = bwmorph(im_sm,'endpoints');
     
-% invert nodeless skel, get br-br conn..
+%invert nodeless skel, get br-br conn..
 im_tmp = logical(1-im_skelconn);
-% fill in br-en connections and invert to get br-br connections
+%fill in br-en connections and invert to get br-br connections
 [i,j] = find(im_en);
 im_tmp = imfill(im_tmp, [i j], 8);
 im_brconn = logical(1-im_tmp);
-% subtract from all connections to obtain br-en connections
+%subtract from all connections to obtain br-en connections
 im_enconn = logical(im_skelconn - im_brconn);
     
 
@@ -560,30 +554,20 @@ skelLengths = cell2mat(struct2cell(regionprops(im_sm,'Area')));
 armnums = zeros(cc.NumObjects,1);
 for currentcell = 1:cc.NumObjects
     
-    % select skeleton and br-en connections
+    %select skeleton and br-en connections
     curr_skeleton = im_sm(labeled == currentcell);
     curr_enconn = im_enconn(labeled == currentcell);
     
-    
     curr_skelLength = skelLengths(currentcell);
     
-    regions_enconn = regionprops(curr_enconn);
-    armNum = 0;
-    curr_skelLength = skelLengths(currentcell);
-    if length(regions_enconn) == 1
-        armNum = 2;
-    else
-        for k = 1:length(regions_enconn)
-            area_en = regions_enconn(k).Area;
-            if area_en/curr_skelLength > peakThreshold
-                armNum = armNum + 1;
-            end
+    for k = 1:length(curr_enconn)
+        area_en = regions_enconn(k).Area;
+        if area_en/skelLength > peakThreshold
+            peakNum = peakNum + 1;
         end
     end
-    % if shape is a line, count as two arms
-    if armNum == 1, armNum = 2; end
+
     
-    armnums(currentcell) = armNum;
     
 end
 
