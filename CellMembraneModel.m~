@@ -71,9 +71,7 @@ end
 
 %%
     function restoreForce = calcRestoreForce(currentnode)
-        prevNode = mod(currentNode-1,numNodes) + numNodes*(currentNode == 1);
-        nextNode = mod(currentNode+1,numNodes) + numNodes*(currentNode == numNodes-1);
-         %%%%
+        
         
     end
 
