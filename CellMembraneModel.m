@@ -7,11 +7,14 @@ dt = 0.1;
 t = 0:dt:1;
 
 testBodyForce = [1, 0];
-restSpringLength = 0.45;
-springConst = 5;
+restSpringLength = 0.9;
+springConst = 2;
 
 maxNodeDist = 1;
 minNodeDist = 0.1;
+
+% restAngle = 3*pi/4; %angle between points in octagon (set to pi*(1-2/length(r)))
+restoreConst = 1;
 
 L = linspace(0,2.*pi,9);
 L = L(1:end-1);
@@ -19,6 +22,8 @@ x = 1.2*cos(L)';
 y = 1.2*sin(L)';
 
 r = [x, y];
+
+r(1,:) = r(1,:) + [1, 0];
 
 numNodes = size(r,1);
 
@@ -28,18 +33,21 @@ pause(0.5);
 for i = 1:length(t)
     
     r_prev = r;
-    
-    
-    
+
     for currentNode = 1:numNodes
         
+        restAngle = pi*(1-2/numNodes);
+        
         springForce = calcSpringForce(currentNode);
-        
-        
-        r(currentNode,:) = r_prev(currentNode,:) + dt * (springForce);
+        restoreForce = calcRestoreForce(currentNode);
+
+        force = springForce + restoreForce;
+        r(currentNode,:) = r_prev(currentNode,:) + dt * (force);
     end
-    r(1,:) = r_prev(1,:) + dt * (testBodyForce);
+%     r(1,:) = r_prev(1,:) + dt * (testBodyForce);
     
+%     testBodyForce = calcRestoreForce(1);
+%     r(1,:) = r_prev(1,:) + dt * (testBodyForce);
     
     
     %add/remove nodes that get too far apart
@@ -47,7 +55,7 @@ for i = 1:length(t)
     r = r_new;
     numNodes = size(r,1);
     
-    if numNodes > 3
+    if numNodes > 4
         r_new = removeNodes(r);
         r = r_new;
         numNodes = size(r,1);
@@ -59,6 +67,7 @@ for i = 1:length(t)
     
 end
 
+%%
     function plotCell(r)
         rPlot = [r(:,:); r(1,:)];
         plot(rPlot(:,1), rPlot(:,2)+.2, 'rx-');
@@ -70,10 +79,22 @@ end
     end
 
 %%
-    function restoreForce = calcRestoreForce(currentnode)
+    function restoreForce = calcRestoreForce(currentNode)
+        restoreForce = 0;
+        
         prevNode = mod(currentNode-1,numNodes) + numNodes*(currentNode == 1);
         nextNode = mod(currentNode+1,numNodes) + numNodes*(currentNode == numNodes-1);
-         %%%%
+        
+        prevPoint = r(prevNode,:) - r(currentNode,:);
+        nextPoint = r(nextNode,:) - r(currentNode,:);
+        
+        angle = acos(dot(prevPoint, nextPoint)/(norm(prevPoint)*norm(nextPoint)));
+        
+        if angle < restAngle
+            bridge = nextPoint - prevPoint;
+            restoreForce = prevPoint - dot(prevPoint,bridge) * bridge/norm(bridge);
+            restoreForce = (restoreForce/norm(restoreForce)) * restoreConst;
+        end
         
     end
 
@@ -98,23 +119,28 @@ end
         % compare currentNode and nextNode and add a new node in midpoint if
         % they're too far apart
         
-        r_new = r;
+        newPoints = [];
         
         for currentNode = 1:size(r,1)
             nextNode = mod(currentNode+1,numNodes) + numNodes*(currentNode == numNodes-1);
-            
-            dist = sqrt(sum((r(nextNode,:) - r(currentNode,:)).^2));
+            dist = norm(r(nextNode,:) - r(currentNode,:));
             
             if dist > maxNodeDist
                 
                 midpoint = (r(nextNode,:) + r(currentNode,:))/2;
+                newPoints = [newPoints; currentNode, midpoint];
                 
-                if currentNode == numNodes
-                    r_new = [r_new(1:end,:); midpoint];
-                else
-                    r_new = [r_new(1:currentNode,:); midpoint; r_new(nextNode:end,:)];
-            
-                end
+            end
+        end
+        
+        r_new = [r; zeros(size(newPoints,1),2)];
+        for newRow = 1:size(newPoints,1)
+            newNode = newPoints(newRow,1);
+            midpoint = newPoints(newRow,2:3);
+            if newNode == numNodes
+                r_new = [r_new(1:end,:); midpoint];
+            else
+                r_new = [r_new(1:newNode,:); midpoint; r(newNode+1:end,:)];
             end
         end
     end
@@ -144,7 +170,13 @@ end
                 end
             
             end
+            
+            if size(r_new,1) < 4
+                error('Too many nodes removed, try decreasing minNodeDist');
+            end
+            
         end
+        
     end
         
         
