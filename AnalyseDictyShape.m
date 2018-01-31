@@ -14,7 +14,7 @@ function AnalyseDictyShape
 % Load clip using script |load_clip_and_pars|
 
 addpath('functions/') % add dir for functions
-% warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); 
+warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); 
 clf; % clear current figure
 set(gcf, 'Position', get(0,'Screensize')); % set size of figure window
 
@@ -256,7 +256,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
             ', ''InitialMagnification'', ''fit'');']);
         title(IMAGE_NAMES(im_num), 'FontSize',16);
         
-        if im_num == 6
+        if im_num == PLOT_NUMS(end)
 %             imshow(analysisResults.I7, 'InitialMagnification', 'fit');
             hold on;
             plot(centroids(:,1), centroids(:,2), 'rx');
@@ -303,7 +303,37 @@ if makeMovie == 1
     close(v);
 end
 
-    
+
+%% Plot results (RMS displacement)
+
+% !! CLEAN THIS UP!
+
+
+
+dataPoints = floor(numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2))/2);
+plotData = cell(1,size(cent_hist,2));
+index = 0;
+for i = 1:size(cent_hist,2)
+    if size(cent_hist{i},1) >= dataPoints
+        index = index+1;
+        %get dispalcement
+        plotData{index} = sqrt(sum((cent_hist{i}(1:dataPoints,2:3) - cent_hist{i}(1,2:3)).^2,2));
+    end
+end
+
+figure;
+hold on; 
+avgDisplacement = zeros(dataPoints,1);
+for i = 1:index 
+%     plot(1:dataPoints, plotData{i}(:), 'b--');
+    avgDisplacement = ((i-1)*avgDisplacement + plotData{i}(:))/i;
+end
+plot(0:dataPoints-1, sqrt(avgDisplacement(:)), 'r--')
+hold off;
+title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' frames']);
+
+
+
     
 
 %% SUBFUNCTION 1: readImages()
