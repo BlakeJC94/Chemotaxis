@@ -25,8 +25,8 @@ frameRate = 10;
 stepEvent = 0;
 stepCond = 'frameNum >= 180 ';
 
-recordArms = 0;
-recordArea = 0;
+recordArms = 1;
+recordArea = 1;
 
 clipNum = 1;
 
@@ -54,7 +54,7 @@ IMAGE_NAMES = {...
     };
 
 % If makeMovie == 1, change plot output to original + overlay instead of
-% full output from image analsysis. 
+% full output from image analysis. 
 if makeMovie == 1
     PLOT_NUMS = 1:2;
     IMAGE_NAMES = {'Original', 'Overlay'};
@@ -146,7 +146,6 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         end
         
         
-        
     else 
         
         % update region index for each cell ID
@@ -168,7 +167,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         % disable IDs for cells that exit
         id_update(id == -1) = -1; % for cells that have already exited
         if ~isempty(unassignedTracks)
-            disp(['unassignedTracks, frameNum = ' num2str(frameNum)])
+            %disp(['unassignedTracks, frameNum = ' num2str(frameNum)])
             ind = ismember(id(2,:), unassignedTracks(:));
             id_update(2,ind) = -1;
         end
@@ -182,7 +181,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         
         % add IDs for cells that enter
         if ~isempty(unassignedDetections)
-            disp(['unassignedDetections, frameNum = ' num2str(frameNum)])
+            %disp(['unassignedDetections, frameNum = ' num2str(frameNum)])
             
             % find last recorded positions of inactive cells
             inactive_id = id(1,(id(2,:) == -1));
@@ -315,7 +314,7 @@ end
 % output clip data into function argout
 dataOutput.centroids = cent_hist;
 if recordArea == 1, dataOutput.area = area_hist; end
-if recordArms == 1, dataOutput.arms = arms_hist; end
+if recordArms == 1, dataOutput.arms = arm_hist; end
     
 
 % close video writer if opened
