@@ -1,8 +1,9 @@
-function dataOutput = AnalyseDictyShape()
+
 % Function for analysing the images from Dicty data
 % Based on code from David M. Richards - 14/08/2017
 % Blake Cook - 6/12/2017
 % ======================== %
+
 %% Preamble
 %  - clipNum: integer index of clip to load (input for loading data script)
 %  - makeMovie: (1) show original data with final overlay and export 
@@ -83,20 +84,21 @@ load_clip_and_pars;
 % If makeMovie == 1, specify avi output in 'Videos/' and set up video writer
 if makeMovie == 1
     
-    % figure out name of output movie file
     append = 0; % index to append to filename if duplicate is detected
     movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
         '_overlay_' num2str(append,'%03.f') '.avi'];
+    
     while exist(['videos/' movieName], 'file') ~= 0
+        
         append = append+1;
         movieName = ['Clip_' num2str(clipNum,'%02.f') '_' FILENAME(1:end-4) ...
             '_overlay_' num2str(append,'%03.f') '.avi'];
+        
     end
     
-    % create and open video writer object
-    v = VideoWriter(['videos/' movieName]); 
+    v = VideoWriter(['videos/' movieName]); %create writer object
     v.FrameRate = frameRate;
-    open(v);
+    open(v); %open obj
     
 end
 
@@ -312,21 +314,17 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
 end
 
-% output clip data into function argout
-dataOutput.centroids = cent_hist;
-if recordArea == 1, dataOutput.area = area_hist; end
-if recordArms == 1, dataOutput.arms = arms_hist; end
-    
-
 % close video writer if opened
 if makeMovie == 1
     close(v);
 end
 
 
-
-
 %% Plot results (RMS displacement)
+
+% !! CLEAN THIS UP!
+
+
 
 dataPoints = floor(numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2))/2);
 plotData = cell(1,size(cent_hist,2));
@@ -375,7 +373,7 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         if (FRAME_RANGE(1)==-1); FRAME_RANGE(1)=1; end
         if (FRAME_RANGE(2)==Inf); FRAME_RANGE(2)=num_frames; end
         
-        %num_frames_range = numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)); %not used
+        num_frames_range = numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2));
         
         if (ROI(1)==-1); ROI(1)=1; end
         if (ROI(2)==-1); ROI(2)=1; end
@@ -393,10 +391,10 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         
         % Read in images
         tif_obj = Tiff([DIR FILENAME],'r');
-        for frameIndex = 1:num_frames
-            tif_obj.setDirectory(CHANNEL(1)+CHANNEL(2)*(frameIndex-1));
+        for i = 1:num_frames
+            tif_obj.setDirectory(CHANNEL(1)+CHANNEL(2)*(i-1));
             im_full = tif_obj.read();
-            im(:,:,frameIndex) = im_full(ROI(2):ROI(4),ROI(1):ROI(3));
+            im(:,:,i) = im_full(ROI(2):ROI(4),ROI(1):ROI(3));
         end
         tif_obj.close();
         
@@ -503,7 +501,7 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
 %             end
 %         end
         %%%% We should really be tracking these internal markers, not the
-        %%%% results from watershed transforms. we could allow cells to enter
+        %%%% results from watershed transformswe could allow cells to enter
         %%%% from boundary and reject false positives away from the
         %%%% boundary much easier!!
         
@@ -547,14 +545,30 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         end
         
         % export I1, I2,... to function output struct
-        for dataIndex = 1:7
-            eval(['analysisResults.I' num2str(dataIndex) ' = I' num2str(dataIndex) ';'])
+        for i = 1:7
+            eval(['analysisResults.I' num2str(i) ' = I' num2str(i) ';'])
         end
         
     end
 
 
 end
+
+
+
+% function [armnums] = skelmetric_mult_old(im, peakThreshold)
+% % Performs skelmetric transform on binary image of multiple regions. 
+% %THIS IS AN INEFFICIENT WAY OF DOING THINGS
+% cc = bwconncomp(im);
+% labeled = labelmatrix(cc);
+% 
+% armnums = zeros(cc.NumObjects,1);
+% for regionIndex = 1:cc.NumObjects
+%     im_cell = (labeled == regionIndex); 
+%     armnums(regionIndex) = skelmetric(im_cell, peakThreshold);
+% end
+% 
+% end
 
 
 function armnums = skelmetric_mult(im, peakThreshold)
@@ -624,7 +638,7 @@ end
 
 
 
-end
+
 
 
 

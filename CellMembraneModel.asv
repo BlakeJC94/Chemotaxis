@@ -316,21 +316,16 @@ end
             
             
             % fill neach NaN row with the midpoint and prev springlength
-%             addRows = find(addRows);
-%             for index = 1:numNewRows
-%                 row = addRows(index);
-%                 nextrow = mod(row,size(rNew,1))+1;
-%             
-%                 rNew_tmp(row+index,:) = (rNew(row,:)+rNew(nextrow,:))/2;
-%                 restSpringLengthsNew_tmp(row+index) = restSpringLengthsNew_tmp(row+index-1);
-%             end
-            
             addRows = find(addRows);
-            indices = (1:length(addRows))' + addRows;
-            addRowsNext = mod(addRows,size(rNew,1))+1;
-            rNew_tmp(indices,:) = (rNew(addRows,:)+rNew(addRowsNext,:))/2;
-            restSpringLengthsNew_tmp(indices) = restSpringLengthsNew_tmp(indices-1);
-
+            a
+            for index = 1:numNewRows
+                row = addRows(index);
+                nextrow = mod(row,size(rNew,1))+1;
+            
+                rNew_tmp(row+index,:) = (rNew(row,:)+rNew(nextrow,:))/2;
+                restSpringLengthsNew_tmp(row+index) = restSpringLengthsNew_tmp(row+index-1);
+            end
+            
             rNew = rNew_tmp;
             restSpringLengthsNew = restSpringLengthsNew_tmp;
             

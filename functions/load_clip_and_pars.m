@@ -10,14 +10,14 @@ if clipNum == 1
     FILENAME = 'DictyElectrotaxis_171116_001.tif';
     CHANNEL = [3 3];
     FRAME_JUMP = 1;
-%     FRAME_RANGE = [155 271]; 
     FRAME_RANGE = [155 271];
-%     ROI = [340 500 880 800];
-    ROI = [-1 -1 Inf Inf];
+%     FRAME_RANGE = [210 271];
+    ROI = [340 500 880 800];
+%     ROI = [-1 -1 Inf Inf];
 
     noiseThr = 100; %200
     
-    followIndex = 2;  
+    followIndex = 3;  
     metricThreshold = 0.05;
     
 elseif clipNum == 2
