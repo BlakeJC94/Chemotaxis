@@ -12,7 +12,8 @@ function dataOutput = AnalyseDictyShape()
 %      string |stepCond| (0) don't pause analysis until finished
 % Load clip using script |load_clip_and_pars|
 
-warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); %disable pointless warning
+addpath('functions/') % add dir for functions
+warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); 
 clf; % clear current figure
 set(gcf, 'Position', get(0,'Screensize')); % set size of figure window
 
@@ -22,9 +23,9 @@ makeMovie = 0;
 frameRate = 10;
 
 stepEvent = 0;
-stepCond = 'frameNum >= 221 ';
+stepCond = 'frameNum >= 180 ';
 
-recordArms = 0;
+recordArms = 1;
 recordArea = 1;
 
 clipNum = 1;
@@ -73,57 +74,9 @@ FILENAME = []; CHANNEL = []; FRAME_JUMP = []; FRAME_RANGE = []; ROI = [];
 noiseThr = []; followIndex = []; metricThreshold = [];
 
 % load values
-%  - CHANNEL - use channel number CHANNEL(1) out of total of CHANNEL(2) channels
-%  - FRAME_RANGE - which frames to analysis; [-1 Inf] => all frames
-%  - ROI - region of interest as [x1 y1 x2 y2]; [-1 -1 Inf Inf] => full image
-%  - REGIONS_TO_IGNORE - regions to remove from final image as [x1 y1 x2 y2]
-%  - noiseThr: 
-if clipNum == 1
-    %Orignal test clip
-    FILENAME = 'DictyElectrotaxis_171116_001.tif';
-    CHANNEL = [3 3];
-    FRAME_JUMP = 1;
-    FRAME_RANGE = [155 271];
-    %     FRAME_RANGE = [210 271];
-    ROI = [340 500 880 800];
-    %     ROI = [-1 -1 Inf Inf];
-    
-    noiseThr = 100; %200
-    
-    followIndex = 3;
-    metricThreshold = 0.05;
-    
-elseif clipNum == 2
-    FILENAME = 'DictyElectrotaxis_171116_002.tif';
-    CHANNEL = [3 3];
-    FRAME_RANGE = [120 Inf];
-    FRAME_JUMP = 1;
-    ROI = [170, 200, 710, 500];
-    
-    noiseThr = 10;
-    
-    followIndex = 1;
-    metricThreshold = 0.05;
-    
-elseif clipNum == 3
-    %seems to be in negative, will require imcomplement() before analysis
-    FILENAME = 'DictyElectrotaxis_171108_001.tif';
-    CHANNEL = [1 3];
-    FRAME_RANGE = [90 165]; %66 165
-    FRAME_JUMP = 1;
-    ROI = [170  362  710  662];
-    
-    noiseThr = 200;
-    
-    followIndex = 1;
-    metricThreshold = 0.05;
-    
-else
-    error(['No clip corresponding to ' num2str(clipNum)]);
-end
+load_clip_and_pars; 
 
-
-% read images
+% read images 
 [im, num_plots, num_frames]  = readImages();
 
 
@@ -157,7 +110,6 @@ end
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     frame_input = im(:,:,frameNum);
-    
     analysisResults = analyseImages(frame_input);
     
     
@@ -169,9 +121,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     centroids = cell2mat(regions(2,:)');
     
     % get armnum data
-    if recordArms == 1
-        armnums = skelmetric_mult(analysisResults.I7, metricThreshold);
-    end
+    armnums = skelmetric_mult(analysisResults.I7, metricThreshold);
     
     % update ID and trackers
     if frameNum == FRAME_RANGE(1)
@@ -179,114 +129,25 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         % set up |cell_id|. 1st row = cell ID, 2nd row = region index (RI) 
         % in current frame.
         id = [(1:size(centroids,1)); (1:size(centroids,1))];
+        ind = (id(2,:)~=-1);
+        active_id = id(:,ind);
         
         % set up centroid tracker: cent_hist{n} returns a matrix of the
         %   centroid loactions of cell with ID 'n' (columns are frame, x, y)
         % set up area tracker
-        % set up armnum tracker
+        % set up armnum trackercl
         cent_hist = cell(1,size(id,2));
         if recordArea == 1, area_hist = cell(1,size(id,2)); end
-        if recordArms == 1, arm_hist = cell(1,size(id,2)); end      
+        if recordArms == 1, arm_hist = cell(1,size(id,2)); end
+        for j = 1:size(id,2)
+            cent_hist{id(1,j)} = [1, centroids(id(2,j),:)];
+            if recordArea == 1, area_hist{id(1,j)} = [1, areas(id(2,j))]; end
+            if recordArms == 1, arm_hist{id(1,j)} = [1, armnums(id(2,j))]; end
+        end
+        
         
     else 
         
-        % update cell IDs
-        id = updateTrackers(id);
-        
-        
-    end
-    
-    
-    % get active cell IDs in current frame
-    active_id = id(:,(id(2,:)~=-1));
-    
-    % update data trackers
-    for track = 1:size(active_id,2)
-        cent_hist{active_id(1,track)} = ...
-            [cent_hist{active_id(1,track)}; frameNum, centroids(active_id(2,track),:)];
-        
-        if recordArea == 1
-            area_hist{active_id(1,track)} = ...
-                [area_hist{active_id(1,track)}; frameNum, areas(active_id(2,track))];
-        end
-        
-        if recordArms == 1
-            arm_hist{active_id(1,j)} = ...
-                [arm_hist{active_id(1,track)}; frameNum, armnums(active_id(2,track))];
-        end
-    end
-    
-    % store centroids for next frame
-    centroids_old = centroids;
-    
-    
-    %Plot images
-    plotResults();
-    
-    
-    
-    % if makeMovie == 1, export data to file. DEBUG: pause if 
-    % stepEvent == 1 and not making movie
-    if makeMovie == 1
-        frame = getframe(gcf); %save current figure as frame
-        writeVideo(v,frame); %write frame to file
-    end
-    if (stepEvent == 1) && eval(stepCond)
-        str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
-        fprintf(str);
-        
-        % (!!) breakpoint here
-        pause; fprintf(repmat('\b',1,length(str)-1)); 
-        
-    end
-    
-    
-end
-
-% output clip data into function argout
-dataOutput.centroids = cent_hist;
-if recordArea == 1, dataOutput.area = area_hist; end
-if recordArms == 1, dataOutput.arms = arm_hist; end
-    
-
-% close video writer if opened
-if makeMovie == 1
-    close(v);
-end
-
-
-
-
-%% Plot results (RMS displacement)
-
-dataPoints = floor(numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2))/2);
-plotData = cell(1,size(cent_hist,2));
-index = 0;
-for i = 1:size(cent_hist,2)
-    if (size(cent_hist{i},1) >= dataPoints) && (norm(cent_hist{i}(dataPoints,2:3) - cent_hist{i}(1,2:3)) > 10)
-        index = index+1;
-        %get dispalcement
-        plotData{index} = sqrt(sum((cent_hist{i}(1:dataPoints,2:3) - cent_hist{i}(1,2:3)).^2,2));
-    end
-end
-
-figure;
-hold on; 
-avgDisplacement = zeros(dataPoints,1);
-for i = 1:index 
-%     plot(1:dataPoints, plotData{i}(:), 'b--');
-    avgDisplacement = ((i-1)*avgDisplacement + plotData{i}(:))/i;
-end
-plot(0:dataPoints-1, sqrt(avgDisplacement(:)), 'r--')
-hold off;
-title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' frames']);
-
-
-
-
-%% SUBFUNCTION 4: 
-
-    function id = updateTrackers(id)
         % update region index for each cell ID
         %  - assignment: nx2 matrix, col 1 = RIs on previous frame, 
         %     col 2 = corresponding RIs on current frame.
@@ -357,67 +218,140 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         % update ID matrix 
         id = id_update;
         
-        
+        % update trackers
+        ind = (id(2,:)~=-1);
+        active_id = id(:,ind);
+        for j = 1:size(active_id,2)
+            cent_hist{active_id(1,j)} = ...
+                [cent_hist{active_id(1,j)}; frameNum, centroids(active_id(2,j),:)];
+            
+            if recordArea == 1
+                area_hist{active_id(1,j)} = ...
+                    [area_hist{active_id(1,j)}; frameNum, areas(active_id(2,j))];
+            end
+            
+            if recordArms == 1 
+                arm_hist{active_id(1,j)} = ...
+                    [arm_hist{active_id(1,j)}; frameNum, armnums(active_id(2,j))];
+            end
+        end
         
         
     end
-
-
-%% SUBFUCNTION 3:
-
-    function plotResults()
+    
+    % store centroids for next frame 
+    centroids_old = centroids;
+    
+    
+    
+    
+    %Plot images
+    plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
+    plot_num_cols = PLOT_NUM_COLS_LIST(num_plots);
+    plot_num = 0;
+    for im_num = PLOT_NUMS
         
-        plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
-        plot_num_cols = PLOT_NUM_COLS_LIST(num_plots);
-        plot_num = 0;
-        for im_num = PLOT_NUMS
+        plot_num = plot_num + 1;
+        plot_i = floor((plot_num - 1)/plot_num_cols);
+        plot_j = mod(plot_num - 1, plot_num_cols);
+        pos = zeros(1,4);
+        pos(1) = plot_j/plot_num_cols + PLOT_MARGIN_X;
+        pos(2) = 1 - (plot_i+1)/plot_num_rows + PLOT_MARGIN_Y;
+        pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
+        pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
+        
+        subplot('Position', pos);
+        eval(['imshow(analysisResults.I' num2str(im_num) ...
+            ', ''InitialMagnification'', ''fit'');']);
+        title(IMAGE_NAMES(im_num), 'FontSize',26,'FontName','Latin Modern Math');
+        
+        if im_num == PLOT_NUMS(end)
+%             imshow(label2rgb(bwlabel(analysisResults.I7),'hsv'), 'InitialMagnification', 'fit');
+%             title('watershed\_out','FontSize',26,'FontName','Latin Modern Math');
+            hold on;
+            plot(centroids(:,1), centroids(:,2), 'rx');
+            xn = cent_hist{followIndex}(:,2);
+            yn = cent_hist{followIndex}(:,3);
+            plot(xn,yn,'b--');
+            hold off;
+            if recordArms == 1
+                text(10, 10, ...
+                    ['No. of arms : ' num2str(arm_hist{followIndex}(end,2))],...
+                    'Color', 'b', 'FontSize', 18);
+            end
             
-            plot_num = plot_num + 1;
-            plot_i = floor((plot_num - 1)/plot_num_cols);
-            plot_j = mod(plot_num - 1, plot_num_cols);
-            pos = zeros(1,4);
-            pos(1) = plot_j/plot_num_cols + PLOT_MARGIN_X;
-            pos(2) = 1 - (plot_i+1)/plot_num_rows + PLOT_MARGIN_Y;
-            pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
-            pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
-            
-            subplot('Position', pos);
-            eval(['imshow(analysisResults.I' num2str(im_num) ...
-                ', ''InitialMagnification'', ''fit'');']);
-            title(IMAGE_NAMES(im_num), 'FontSize',26,'FontName','Latin Modern Math');
-            
-            if im_num == PLOT_NUMS(end)
-                hold on;
-                plot(centroids(:,1), centroids(:,2), 'rx');
-                xn = cent_hist{followIndex}(:,2);
-                yn = cent_hist{followIndex}(:,3);
-                plot(xn,yn,'b--');
-                hold off;
-                if recordArms == 1
-                    text(10, 10, ...
-                        ['No. of arms : ' num2str(arm_hist{followIndex}(end,2))],...
-                        'Color', 'b', 'FontSize', 18);
-                end
-                
-                for j = 1:size(active_id,2)
-                    text(centroids(active_id(2,j),1)-10,...
-                        centroids(active_id(2,j),2)-35, ...
-                        num2str(active_id(1,j)), 'FontSize', 18);
-                end
-                
+            for j = 1:size(active_id,2)
+                text(centroids(active_id(2,j),1)-10,...
+                    centroids(active_id(2,j),2)-35, ...
+                    num2str(active_id(1,j)), 'FontSize', 18);
             end
             
         end
-        % set title of figure and print results to figure now
-        set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
-        
-        drawnow();
-        
-        
         
     end
+    % set title of figure and print results to figure now
+    set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
+
+    drawnow();
+    
+    
+    % if makeMovie == 1, export data to file. DEBUG: pause if 
+    % stepEvent == 1 and not making movie
+    if makeMovie == 1
+        frame = getframe(gcf); %save current figure as frame
+        writeVideo(v,frame); %write frame to file
+    end
+    if (stepEvent == 1) && eval(stepCond)
+        str = ['Paused on frame ' num2str(frameNum) '. Press any key to continue \n'];
+        fprintf(str);
+        pause; fprintf(repmat('\b',1,length(str)-1));
+        
+    end
+    
+    
+end
+
+% output clip data into function argout
+dataOutput.centroids = cent_hist;
+if recordArea == 1, dataOutput.area = area_hist; end
+if recordArms == 1, dataOutput.arms = arm_hist; end
+    
+
+% close video writer if opened
+if makeMovie == 1
+    close(v);
+end
 
 
+
+
+%% Plot results (RMS displacement)
+
+dataPoints = floor(numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2))/2);
+plotData = cell(1,size(cent_hist,2));
+index = 0;
+for i = 1:size(cent_hist,2)
+    if size(cent_hist{i},1) >= dataPoints
+        index = index+1;
+        %get dispalcement
+        plotData{index} = sqrt(sum((cent_hist{i}(1:dataPoints,2:3) - cent_hist{i}(1,2:3)).^2,2));
+    end
+end
+
+figure;
+hold on; 
+avgDisplacement = zeros(dataPoints,1);
+for i = 1:index 
+%     plot(1:dataPoints, plotData{i}(:), 'b--');
+    avgDisplacement = ((i-1)*avgDisplacement + plotData{i}(:))/i;
+end
+plot(0:dataPoints-1, sqrt(avgDisplacement(:)), 'r--')
+hold off;
+title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' frames']);
+
+
+
+    
 
 %% SUBFUNCTION 1: readImages()
 % Takes plot options specified in |AnalyseDictyShape| and analysis
@@ -502,7 +436,7 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
 
     function analysisResults = analyseImages(frame_input)
         
-        
+        analysisResults = struct;
         
         % remove non-uniform noise from background
         bg = imopen(frame_input, strel('disk',15));
@@ -543,62 +477,46 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         
         
         % remove noise
-        int_max_main =  bwareaopen(int_max, 10 ); %75 %200
+        int_max_main =  bwareaopen(int_max, 200); %75
         
         % morphologically close (dialte then erode, close some gaps), fill 
-        % holes and slightly thin region to ensure int_mask is contained in
-        % ext_mask
+        % holes 
         int_close = imclose(int_max_main, ones(3));
         int_close_fill = imfill(int_close, 'holes');
-        int_mask = int_close_fill;
-%         int_mask = bwmorph(int_close_fill, 'Thin', 1);
+%         int_thin = bwmorph(int_close_fill, 'Thin', 1);
         
+        
+        % remove false positives
+        int_mask =  bwareaopen(int_close_fill, 25); 
+        
+        %%%% test defragmentation.. couldnt get this to work, may come back
+        %%%% to this someday..
+%         int_cent = cell2mat(struct2cell(regionprops(int_mask, 'Centroid'))');
+%         int_cc = bwconncomp(int_mask);
+%         int_labeled = labelmatrix(int_cc);
+%         for i = 1:size(int_cent,1)
+%             int_dists = sqrt(sum((int_cent(i,:)-int_cent).^2,2));
+%             reg_del = find((int_dists < 150)&(int_dists > 0));
+%             if ~isempty(reg_del)
+%                 int_labeled(ismember(int_labeled,reg_del)) = 0;
+%             end
+%         end
+        %%%% We should really be tracking these internal markers, not the
+        %%%% results from watershed transforms. we could allow cells to enter
+        %%%% from boundary and reject false positives away from the
+        %%%% boundary much easier!!
         
         
         I5 = int_mask;
-        
-        if frameNum > FRAME_RANGE(1)
-            
-            labelled = bwlabel(I5);
-            
-            int_regions = regionprops(I5, 'Centroid');
-            int_regions_cents = cell2mat(struct2cell(int_regions)');
-            
-            cost2 = zeros(size(centroids_old,1), size(int_regions_cents,1));
-            for j = 1:size(centroids_old,1)
-                diff_I8 = int_regions_cents - repmat(centroids_old(j,:), [size(int_regions_cents,1),1]);
-                cost2(j,:) = sqrt(sum(diff_I8.^2,2));
-            end
-            
-            [~,~,unassignedDetections2] = ...
-                assignDetectionsToTracks(cost2, 50);
-            
-            for j = 1:length(unassignedDetections2)
-                int_cent_check = int_regions_cents(unassignedDetections2(j),:);
-                
-                dist_check = sqrt(sum((centroids_old - int_cent_check).^2,2));
-                
-                if min(dist_check) < 80
-                    labelled(labelled == unassignedDetections2(j)) = 0;
-                end
-                
-            end
-            
-            I5 = (labelled>0);
-            
-        end
         
         
         
         % complement |frame_adjust|
         im_c = imcomplement(frame_adjusted);
         
-        
-        
-        I8 = I3 & ~I5;        
         % modify image such that background and internal mask are minumum
         % points in the image
-        im_mod = imimposemin(im_c, ~I8);
+        im_mod = imimposemin(im_c, ~ext_mask | int_mask);
         
         % computer watershed transform on |im_mod| and remove bg and
         % outlines of cells, leving distinct regions for cells
@@ -610,7 +528,6 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         mask = bwareaopen(L, noiseThr);
         
         I7 = mask;
-        
         
         
         
@@ -629,8 +546,7 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         end
         
         % export I1, I2,... to function output struct
-        analysisResults = struct;
-        for dataIndex = 1:8
+        for dataIndex = 1:7
             eval(['analysisResults.I' num2str(dataIndex) ' = I' num2str(dataIndex) ';'])
         end
         
