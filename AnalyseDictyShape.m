@@ -3,6 +3,9 @@ function dataOutput = AnalyseDictyShape()
 % Based on code from David M. Richards - 14/08/2017
 % Blake Cook - 6/12/2017
 % ======================== %
+warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); %disable pointless warning
+clf; % clear current figure
+set(gcf, 'Position', get(0,'Screensize')); % set size of figure window
 %% Preamble
 %  - clipNum: integer index of clip to load (input for loading data script)
 %  - makeMovie: (1) show original data with final overlay and export 
@@ -10,24 +13,20 @@ function dataOutput = AnalyseDictyShape()
 %      don't export avi
 %  - stepEvent: [DEBUG] (1) pause analysis for some condition specified in
 %      string |stepCond| (0) don't pause analysis until finished
-% Load clip using script |load_clip_and_pars|
-
-warning('off','MATLAB:imagesci:tiffmexutils:libtiffWarning'); %disable pointless warning
-clf; % clear current figure
-set(gcf, 'Position', get(0,'Screensize')); % set size of figure window
+%  - recordArms/recordArea: (1) record number of arms/cell area,
+%      (0) don't record number of arms/cell area.
 
 DIR = 'data/'; % specify where data is relative to current folder
+clipNum = 3;
 
 makeMovie = 0;
 frameRate = 10;
 
 stepEvent = 0;
-stepCond = 'frameNum >= 221 ';
+stepCond = '(frameNum >= 221)';
 
-recordArms = 0;
+recordArms = 1;
 recordArea = 1;
-
-clipNum = 1;
 
 
 
@@ -35,7 +34,7 @@ clipNum = 1;
 %% Plot parameters:
 %  - PLOT_NUMS: plot numbers to show
 %  - PLOT_MARGIN: margins around each subplot
-%  - PLOT_NUM_COLS_LIST, PLOT_NUM_ROWS_LIST: number of rows/rows for subplot
+%  - PLOT_NUM_COLS_LIST, PLOT_NUM_ROWS_LIST: number of rows/cols in subplot
 %  - IMAGE_NAMES: names for images
 
 PLOT_NUMS = 1:6;
@@ -68,52 +67,68 @@ end
 %     FILENAME, CHANNEL, FRAME_JUMP, FRAME_RANGE, ROI, noiseThr, metricThreshold
 %  - im: 3d array that stores all images (rows, columns, frames)
 
-% initialise variables
-FILENAME = []; CHANNEL = []; FRAME_JUMP = []; FRAME_RANGE = []; ROI = [];
-noiseThr = []; followIndex = []; metricThreshold = [];
-
 % load values
-%  - CHANNEL - use channel number CHANNEL(1) out of total of CHANNEL(2) channels
-%  - FRAME_RANGE - which frames to analysis; [-1 Inf] => all frames
-%  - ROI - region of interest as [x1 y1 x2 y2]; [-1 -1 Inf Inf] => full image
-%  - REGIONS_TO_IGNORE - regions to remove from final image as [x1 y1 x2 y2]
-%  - noiseThr: 
-if clipNum == 1
+%  - CHANNEL: use channel number CHANNEL(1) out of total of CHANNEL(2) channels
+%  - FRAME_RANGE: which frames to analysis; [-1 Inf] => all frames
+%  - ROI: region of interest as [x1 y1 x2 y2]; [-1 -1 Inf Inf] => full image
+%  - REGIONS_TO_IGNORE: regions to remove from final image as [x1 y1 x2 y2]
+%  - extNoiseThr: keep regions with area greater than this threshold on ext_mask
+%  - intNoiseThr: keep regions with area greater than this threshold on int_mask
+%  - followIndex: track specific cell on overlay (plots trajectory and
+%      displays arm number on overlay)
+%  - metricThreshold: argument for skelmetric, count arms such that
+%      armlength > metricThreshold * skeletonlength
+if clipNum == 0
     %Orignal test clip
     FILENAME = 'DictyElectrotaxis_171116_001.tif';
     CHANNEL = [3 3];
     FRAME_JUMP = 1;
     FRAME_RANGE = [155 271];
-    %     FRAME_RANGE = [210 271];
     ROI = [340 500 880 800];
-    %     ROI = [-1 -1 Inf Inf];
     
-    noiseThr = 100; %200
+    extNoiseThr = 100; 
+    intNoiseThr = 20;
     
-    followIndex = 3;
+    followIndex = 29;
     metricThreshold = 0.05;
     
-elseif clipNum == 2
-    FILENAME = 'DictyElectrotaxis_171116_002.tif';
+elseif clipNum == 1
+    FILENAME = 'DictyElectrotaxis_171116_001.tif';
     CHANNEL = [3 3];
-    FRAME_RANGE = [120 Inf];
     FRAME_JUMP = 1;
-    ROI = [170, 200, 710, 500];
+    FRAME_RANGE = [155 271];
+    ROI = [-1 -1 Inf Inf];
     
-    noiseThr = 10;
+    extNoiseThr = 100; 
+    intNoiseThr = 20;
+    
+    followIndex = 29;
+    metricThreshold = 0.05;
+      
+elseif clipNum == 2
+    FILENAME = 'chemotaxis2.tif';
+    CHANNEL = [2 3];
+    FRAME_RANGE = [-1 Inf]; 
+    FRAME_JUMP = 1;
+%     ROI = [1 200 900 650]; 	
+    ROI = [-1 -1 Inf Inf];
+    
+    extNoiseThr = 100; 
+    intNoiseThr = 20;
     
     followIndex = 1;
     metricThreshold = 0.05;
     
 elseif clipNum == 3
-    %seems to be in negative, will require imcomplement() before analysis
-    FILENAME = 'DictyElectrotaxis_171108_001.tif';
-    CHANNEL = [1 3];
-    FRAME_RANGE = [90 165]; %66 165
+    FILENAME = 'electrotaxis.tif';
+    CHANNEL = [2 3];
+    FRAME_RANGE = [40 Inf]; 
     FRAME_JUMP = 1;
-    ROI = [170  362  710  662];
-    
-    noiseThr = 200;
+%     ROI = [-1 -1 Inf Inf];
+    ROI = [10 300 810 700];
+
+    extNoiseThr = 100; 
+    intNoiseThr = 20;
     
     followIndex = 1;
     metricThreshold = 0.05;
@@ -124,9 +139,12 @@ end
 
 
 % read images
-[im, num_plots, num_frames]  = readImages();
+%  - im: holds all images (rows, cols, frames)
+%  - num_plots: 
+[im, num_frames]  = readImages();
 
 
+% Give movie file a name
 % If makeMovie == 1, specify avi output in 'Videos/' and set up video writer
 if makeMovie == 1
     
@@ -151,13 +169,12 @@ end
 
 
 %% Analyse images, get data and plot results
-% to track cells, ....
 % Centroids matrix is indexed by a region index assigned by MATLAB. "Update
 % trackers" segment matches these region indicies with the cell ID. 
 for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
+    % analyse current frame
     frame_input = im(:,:,frameNum);
-    
     analysisResults = analyseImages(frame_input);
     
     
@@ -211,7 +228,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
         end
         
         if recordArms == 1
-            arm_hist{active_id(1,j)} = ...
+            arm_hist{active_id(1,track)} = ...
                 [arm_hist{active_id(1,track)}; frameNum, armnums(active_id(2,track))];
         end
     end
@@ -221,7 +238,7 @@ for frameNum = FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2)
     
     
     %Plot images
-    plotResults();
+    plotImages();
     
     
     
@@ -247,7 +264,8 @@ end
 dataOutput.centroids = cent_hist;
 if recordArea == 1, dataOutput.area = area_hist; end
 if recordArms == 1, dataOutput.arms = arm_hist; end
-    
+dataOutput.Frames = FRAME_RANGE;
+dataOutput.imsize = size(im);
 
 % close video writer if opened
 if makeMovie == 1
@@ -257,175 +275,13 @@ end
 
 
 
-%% Plot results (RMS displacement)
-
-dataPoints = floor(numel(FRAME_RANGE(1):FRAME_JUMP:FRAME_RANGE(2))/2);
-plotData = cell(1,size(cent_hist,2));
-index = 0;
-for i = 1:size(cent_hist,2)
-    if (size(cent_hist{i},1) >= dataPoints) && (norm(cent_hist{i}(dataPoints,2:3) - cent_hist{i}(1,2:3)) > 10)
-        index = index+1;
-        %get dispalcement
-        plotData{index} = sqrt(sum((cent_hist{i}(1:dataPoints,2:3) - cent_hist{i}(1,2:3)).^2,2));
-    end
-end
-
-figure;
-hold on; 
-avgDisplacement = zeros(dataPoints,1);
-for i = 1:index 
-%     plot(1:dataPoints, plotData{i}(:), 'b--');
-    avgDisplacement = ((i-1)*avgDisplacement + plotData{i}(:))/i;
-end
-plot(0:dataPoints-1, sqrt(avgDisplacement(:)), 'r--')
-hold off;
-title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' frames']);
-
-
-
-
-%% SUBFUNCTION 4: 
-
-    function id = updateTrackers(id)
-        % update region index for each cell ID
-        %  - assignment: nx2 matrix, col 1 = RIs on previous frame, 
-        %     col 2 = corresponding RIs on current frame.
-        %  - unassignedTracks: previous RIs not assigned (exited cells)
-        %  - unassignedDetections: current RIs new (entering cells)
-        cost = zeros(size(centroids_old,1), size(centroids,1));
-        for j = 1:size(centroids_old,1)
-            diff = centroids - repmat(centroids_old(j,:), [size(centroids,1),1]);
-            cost(j,:) = sqrt(sum(diff.^2,2));
-        end
-        [assignment,unassignedTracks,unassignedDetections] = ...
-            assignDetectionsToTracks(cost, 50);
-        
-        % create new id matrix
-        id_update = [id(1,:); zeros(1,length(id(2,:)))];
-        
-        % disable IDs for cells that exit
-        id_update(id == -1) = -1; % for cells that have already exited
-        if ~isempty(unassignedTracks)
-            %disp(['unassignedTracks, frameNum = ' num2str(frameNum)])
-            ind = ismember(id(2,:), unassignedTracks(:));
-            id_update(2,ind) = -1;
-        end
-        
-        
-        % update RIs (assignment: col 1 prev, col 2 current)
-        for l = 1:size(assignment,1)
-            ind = ismember(id(2,:),assignment(l,1));
-            id_update(2,ind) = assignment(l,2);
-        end
-        
-        % add IDs for cells that enter
-        if ~isempty(unassignedDetections)
-            %disp(['unassignedDetections, frameNum = ' num2str(frameNum)])
-            
-            % find last recorded positions of inactive cells
-            inactive_id = id(1,(id(2,:) == -1));
-            inactive_cents = zeros(length(inactive_id), 2);
-            for l = 1:length(inactive_id)
-                inactive_cents(l,:) = cent_hist{inactive_id(l)}(end,2:3);
-            end
-            
-            
-            for k = 1:length(unassignedDetections)
-                
-                % check if this cell already has an ID
-                active_cent_dist = sqrt(sum((centroids(unassignedDetections(k),:) - centroids(assignment(:,2),:)).^2,2));
-                inactive_cent_dist = sqrt(sum((centroids(unassignedDetections(k),:) - inactive_cents).^2,2));
-                if min(inactive_cent_dist) <= 50
-                    cell_id = inactive_id((inactive_cent_dist == min(inactive_cent_dist)));
-                    id_update(2, id(1,:) == cell_id) = unassignedDetections(k);
-                elseif min(active_cent_dist) <= 0
-                    % check if a nearby cell is assigned
-                    disp('TRACE');
-                    % dont assign this region to a cell ID 
-                    %(can we merge it with the nearby cell??)
-                else
-                    new_id = max(id_update(1,:)) + 1;
-                    id_update = [id_update(1,:), new_id; id_update(2,:), double(unassignedDetections(k))];
-                
-                    cent_hist{new_id} = zeros(0); 
-                    if recordArea == 1, area_hist{new_id} = zeros(0); end
-                    if recordArms == 1, arm_hist{new_id} = zeros(0); end
-                end
-            end
-        end
-        
-        % update ID matrix 
-        id = id_update;
-        
-        
-        
-        
-    end
-
-
-%% SUBFUCNTION 3:
-
-    function plotResults()
-        
-        plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
-        plot_num_cols = PLOT_NUM_COLS_LIST(num_plots);
-        plot_num = 0;
-        for im_num = PLOT_NUMS
-            
-            plot_num = plot_num + 1;
-            plot_i = floor((plot_num - 1)/plot_num_cols);
-            plot_j = mod(plot_num - 1, plot_num_cols);
-            pos = zeros(1,4);
-            pos(1) = plot_j/plot_num_cols + PLOT_MARGIN_X;
-            pos(2) = 1 - (plot_i+1)/plot_num_rows + PLOT_MARGIN_Y;
-            pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
-            pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
-            
-            subplot('Position', pos);
-            eval(['imshow(analysisResults.I' num2str(im_num) ...
-                ', ''InitialMagnification'', ''fit'');']);
-            title(IMAGE_NAMES(im_num), 'FontSize',26,'FontName','Latin Modern Math');
-            
-            if im_num == PLOT_NUMS(end)
-                hold on;
-                plot(centroids(:,1), centroids(:,2), 'rx');
-                xn = cent_hist{followIndex}(:,2);
-                yn = cent_hist{followIndex}(:,3);
-                plot(xn,yn,'b--');
-                hold off;
-                if recordArms == 1
-                    text(10, 10, ...
-                        ['No. of arms : ' num2str(arm_hist{followIndex}(end,2))],...
-                        'Color', 'b', 'FontSize', 18);
-                end
-                
-                for j = 1:size(active_id,2)
-                    text(centroids(active_id(2,j),1)-10,...
-                        centroids(active_id(2,j),2)-35, ...
-                        num2str(active_id(1,j)), 'FontSize', 18);
-                end
-                
-            end
-            
-        end
-        % set title of figure and print results to figure now
-        set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
-        
-        drawnow();
-        
-        
-        
-    end
-
-
-
 %% SUBFUNCTION 1: readImages()
 % Takes plot options specified in |AnalyseDictyShape| and analysis
 % parameters stored in |load_clip_and_pars|.
 % Required variables: DIR, FILENAME, CHANNEL, FRAME_RANGE, FRAME_JUMP, ROI,
 %    PLOT_NUMS.
 
-    function [im, num_plots, num_frames] = readImages()
+    function [im, num_frames] = readImages()
         % Read header info
         file_info = imfinfo([DIR FILENAME]);
         im_width = file_info(1).Width;
@@ -450,7 +306,7 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         ROI_width  = ROI(3) - ROI(1) + 1;
         ROI_height = ROI(4) - ROI(2) + 1;
         
-        num_plots = numel(PLOT_NUMS);
+        %num_plots = numel(PLOT_NUMS);
         
         % Declare variables:
         %  - im: holds all images
@@ -489,19 +345,9 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
 % forcing these to be catchement basis. Ueful figures and further
 % explanation of watershed: 
 % https://uk.mathworks.com/company/newsletters/articles/the-watershed-transform-strategies-for-image-segmentation.html
-% 
-% 
-% Issues unresolved: sometimes internal mask will randomly fragment,
-% resulting in incorrectly identifying one cell as 2 seperate cells 
-%   - Possible fix: identify corresponding regions between internal mask
-%   and external mask. If one region in external mask has more than one
-%   region in internal mask, check if the area of exeternal mask has change
-%   significantly. If so, overlapping has occurred and internal region
-%   should be kept. Otherwise just take the largest internal marker. 
 
 
     function analysisResults = analyseImages(frame_input)
-        
         
         
         % remove non-uniform noise from background
@@ -526,13 +372,12 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         % morphologially opemn image (erode then dilate, opens gaps
         % between some regions) and remove false positives
         ext_fill_close = imopen(ext_fill, ones(3)); 
-        ext_fill_close = bwareaopen(ext_fill_close, noiseThr); %TODO: define new var for this thr
+        ext_fill_close = bwareaopen(ext_fill_close, extNoiseThr); %TODO: define new var for this thr
         
         % dialate regions by disk (r=3 pix) to enclose cells
         ext_mask = imdilate(ext_fill_close, strel('disk',3));
         
         I3 = ext_mask;
-        
         
         
         % find local maxima in image
@@ -541,61 +386,68 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         I4 = int_max;
         
         
-        
         % remove noise
-        int_max_main =  bwareaopen(int_max, 10 ); %75 %200
+        int_max_main =  bwareaopen(int_max, intNoiseThr); %75 %200
         
         % morphologically close (dialte then erode, close some gaps), fill 
         % holes and slightly thin region to ensure int_mask is contained in
         % ext_mask
         int_close = imclose(int_max_main, ones(3));
-        int_close_fill = imfill(int_close, 'holes');
-        int_mask = int_close_fill;
-%         int_mask = bwmorph(int_close_fill, 'Thin', 1);
+        int_mask = imfill(int_close, 'holes');
         
-        
-        
-        I5 = int_mask;
-        
+        % START EXPERIMENTAL ----
+        % attempt to remove fragments by removing regions in internal mask 
+        % that cannot be paired to a cell on previous frame
         if frameNum > FRAME_RANGE(1)
             
-            labelled = bwlabel(I5);
-            
-            int_regions = regionprops(I5, 'Centroid');
+            % label regions on int_mask and get centroids as matrix
+            labelled = bwlabel(int_mask);
+            int_regions = regionprops(int_mask, 'Centroid');
             int_regions_cents = cell2mat(struct2cell(int_regions)');
             
+            % create cost matrix
             cost2 = zeros(size(centroids_old,1), size(int_regions_cents,1));
             for j = 1:size(centroids_old,1)
                 diff_I8 = int_regions_cents - repmat(centroids_old(j,:), [size(int_regions_cents,1),1]);
                 cost2(j,:) = sqrt(sum(diff_I8.^2,2));
             end
             
+            % find unassigned regions on int_mask
             [~,~,unassignedDetections2] = ...
-                assignDetectionsToTracks(cost2, 50);
+                assignDetectionsToTracks(cost2, 10);
             
+            % for each unassigned region
             for j = 1:length(unassignedDetections2)
+                
+                % get centroid of unassigned region
                 int_cent_check = int_regions_cents(unassignedDetections2(j),:);
                 
+                % check how far selected centroid is cells
                 dist_check = sqrt(sum((centroids_old - int_cent_check).^2,2));
                 
+                % if selected centroid is within 80 pixels of another cell
+                % (does not correspond to new cell), 
                 if min(dist_check) < 80
+                    % then remove this region from int_mask
                     labelled(labelled == unassignedDetections2(j)) = 0;
                 end
                 
             end
             
-            I5 = (labelled>0);
+            % take new int_mask as binary image as all non-removed regions
+            int_mask = (labelled>0);
             
         end
+        % END EXPERIMENTAL ----
+        
+        I5 = int_mask;
         
         
         
         % complement |frame_adjust|
         im_c = imcomplement(frame_adjusted);
+        I8 = I3 & ~I5; 
         
-        
-        
-        I8 = I3 & ~I5;        
         % modify image such that background and internal mask are minumum
         % points in the image
         im_mod = imimposemin(im_c, ~I8);
@@ -607,11 +459,9 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         
         % remove any noise introduced by watershed (outlines sometimes
         % fragment very small parts of the cell membrane)
-        mask = bwareaopen(L, noiseThr);
+        mask = bwareaopen(L, extNoiseThr);
         
         I7 = mask;
-        
-        
         
         
         % overlay cell boundaries and skeletons on original frame
@@ -620,7 +470,6 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
         overlay = imoverlay(frame_input, cellOutline | cellSkeleton, [.3 1 .3]);
         
         I6 = overlay;
-        
         
         
         if makeMovie == 1
@@ -637,13 +486,140 @@ title(['RMS displacement, cells present for at least ' num2str(dataPoints) ' fra
     end
 
 
+
+%% SUBFUNCTION 3: updateTrackers(id)
+
+    function id = updateTrackers(id)
+        % update region index for each cell ID
+        %  - assignment: nx2 matrix, col 1 = RIs on previous frame, 
+        %     col 2 = corresponding RIs on current frame.
+        %  - unassignedTracks: previous RIs not assigned (exited cells)
+        %  - unassignedDetections: current RIs new (entering cells)
+        cost = zeros(size(centroids_old,1), size(centroids,1));
+        for j = 1:size(centroids_old,1)
+            diff = centroids - repmat(centroids_old(j,:), [size(centroids,1),1]);
+            cost(j,:) = sqrt(sum(diff.^2,2));
+        end
+        [assignment,unassignedTracks,unassignedDetections] = ...
+            assignDetectionsToTracks(cost, 10);
+        
+        % create new id matrix
+        id_update = [id(1,:); zeros(1,length(id(2,:)))];
+        
+        % disable IDs for cells that exit
+        id_update(id == -1) = -1; % for cells that have already exited
+        if ~isempty(unassignedTracks)
+            ind = ismember(id(2,:), unassignedTracks(:));
+            id_update(2,ind) = -1;
+        end
+        
+        
+        % update RIs (assignment: col 1 prev, col 2 current)
+        for l = 1:size(assignment,1)
+            ind = ismember(id(2,:),assignment(l,1));
+            id_update(2,ind) = assignment(l,2);
+        end
+        
+        % add IDs for cells that enter
+        if ~isempty(unassignedDetections)
+            
+            % find last recorded positions of inactive cells
+            inactive_id = id(1,(id(2,:) == -1));
+            inactive_cents = zeros(length(inactive_id), 2);
+            for l = 1:length(inactive_id)
+                inactive_cents(l,:) = cent_hist{inactive_id(l)}(end,2:3);
+            end
+            
+            
+            % for each new cell detected,
+            for k = 1:length(unassignedDetections)
+                
+                % check if this cell already has an ID (exited in nearby
+                % vicitnity on previous frame)
+                inactive_cent_dist = sqrt(sum((centroids(unassignedDetections(k),:) - inactive_cents).^2,2));
+                if min(inactive_cent_dist) <= 10
+                    cell_id = inactive_id((inactive_cent_dist == min(inactive_cent_dist)));
+                    id_update(2, id(1,:) == cell_id) = unassignedDetections(k);
+                else
+                    % otherwise create new ID
+                    new_id = max(id_update(1,:)) + 1;
+                    id_update = [id_update(1,:), new_id; id_update(2,:), double(unassignedDetections(k))];
+                
+                    cent_hist{new_id} = zeros(0); 
+                    if recordArea == 1, area_hist{new_id} = zeros(0); end
+                    if recordArms == 1, arm_hist{new_id} = zeros(0); end
+                end
+            end
+        end
+        
+        % update ID matrix 
+        id = id_update;
+        
+    end
+
+
+
+
+%% SUBFUCNTION 4: plotImages()
+
+    function plotImages()
+        
+        num_plots = numel(PLOT_NUMS);
+        plot_num_rows = PLOT_NUM_ROWS_LIST(num_plots);
+        plot_num_cols = PLOT_NUM_COLS_LIST(num_plots);
+        plot_num = 0;
+        for im_num = PLOT_NUMS
+            
+            plot_num = plot_num + 1;
+            plot_i = floor((plot_num - 1)/plot_num_cols);
+            plot_j = mod(plot_num - 1, plot_num_cols);
+            pos = zeros(1,4);
+            pos(1) = plot_j/plot_num_cols + PLOT_MARGIN_X;
+            pos(2) = 1 - (plot_i+1)/plot_num_rows + PLOT_MARGIN_Y;
+            pos(3) = 1/plot_num_cols - 2*PLOT_MARGIN_X;
+            pos(4) = 1/plot_num_rows - 2*PLOT_MARGIN_Y;
+            
+            subplot('Position', pos);
+            eval(['imshow(analysisResults.I' num2str(im_num) ...
+                ', ''InitialMagnification'', ''fit'');']);
+            title(IMAGE_NAMES(im_num), 'FontSize',26,'FontName','Latin Modern Math');
+            
+            if im_num == PLOT_NUMS(end)
+                hold on;
+                plot(centroids(:,1), centroids(:,2), 'rx');
+                if exist('cent_hist{followIndex}','var')
+                    xn = cent_hist{followIndex}(:,2);
+                    yn = cent_hist{followIndex}(:,3);
+                    plot(xn,yn,'b--');
+                    if recordArms == 1
+                        text(10, 10, ...
+                            ['No. of arms : ' num2str(arm_hist{followIndex}(end,2))],...
+                            'Color', 'b', 'FontSize', 18);
+                    end
+                end
+                hold off;
+                
+                for label = 1:size(active_id,2)
+                    text(centroids(active_id(2,label),1)-10,...
+                        centroids(active_id(2,label),2)-35, ...
+                        num2str(active_id(1,label)), 'FontSize', 18);
+                end
+                
+            end
+            
+        end
+        % set title of figure and print results to figure now
+        set(gcf,'Name',[FILENAME ': frame ' num2str(frameNum) '/' num2str(num_frames)], 'NumberTitle', 'off');
+        
+        drawnow();
+        
+    end
+
 end
 
 
 function armnums = skelmetric_mult(im, peakThreshold)
 % Performs skelmetric transform on binary image of multiple regions
-
-
 
 % find skeletons
 im_sm = bwmorph(im,'thin',Inf);
@@ -682,8 +658,6 @@ for currentcell = 1:cc.NumObjects
     curr_skeleton = im_sm(labeled == currentcell);
     curr_enconn = im_enconn(labeled == currentcell);
     
-    
-    curr_skelLength = skelLengths(currentcell);
     
     regions_enconn = regionprops(curr_enconn);
     armNum = 0;

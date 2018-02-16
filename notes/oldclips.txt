@@ -1,0 +1,42 @@
+
+% elseif clipNum == 4
+%     FILENAME = 'DictyElectrotaxis_171116_002.tif';
+%     CHANNEL = [3 3];
+%     FRAME_RANGE = [120 Inf];
+%     FRAME_JUMP = 1;
+%     ROI = [170, 200, 710, 500];
+%     
+%     extNoiseThr = 100; 
+%     intNoiseThr = 20;
+%     
+%     followIndex = 1;
+%     metricThreshold = 0.05;
+%     
+% elseif clipNum == 5
+%     %seems to be in negative, will require imcomplement() before analysis
+%     FILENAME = 'DictyElectrotaxis_171108_001.tif';
+%     CHANNEL = [1 3];
+%     FRAME_RANGE = [90 165]; %66 165
+%     FRAME_JUMP = 1;
+%     ROI = [170  362  710  662];
+%     
+%     extNoiseThr = 100; 
+%     intNoiseThr = 20;
+%     
+%     followIndex = 1;
+%     metricThreshold = 0.05;
+%     
+% elseif clipNum == 6
+%     
+%     FILENAME = 'DictyElectrotaxis_171116_001.tif';
+%     CHANNEL = [3 3];
+%     FRAME_JUMP = 1;
+%     FRAME_RANGE = [155 271];
+%     ROI = [300 300 1200 750];
+%     
+%     extNoiseThr = 100; 
+%     intNoiseThr = 20;
+%     
+%     followIndex = 1;
+%     metricThreshold = 0.05;
+%     
